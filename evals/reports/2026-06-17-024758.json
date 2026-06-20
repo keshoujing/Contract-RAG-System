@@ -1,0 +1,496 @@
+{
+  "experiment": "sql-gated-agent-vs-baseline",
+  "dataset": "dataset_sql_gated_agent.jsonl",
+  "n_cases": 8,
+  "summary": {
+    "baseline": {
+      "n_cases": 8,
+      "answer_similarity": 0.7835359704199106,
+      "retrieval_coverage": 0.3862794538935771,
+      "top1_expected_rate": 0.625,
+      "all_expected_hit_rate": 1.0,
+      "source_precision": 0.5104166666666666,
+      "llm_calls_est": 16,
+      "mean_iterations": 0.0
+    },
+    "agent": {
+      "n_cases": 8,
+      "answer_similarity": 0.7760944122384081,
+      "retrieval_coverage": 0.5737937572557312,
+      "top1_expected_rate": 0.75,
+      "all_expected_hit_rate": 1.0,
+      "source_precision": 0.8125,
+      "llm_calls_est": 30,
+      "mean_iterations": 1.25
+    }
+  },
+  "cases": [
+    {
+      "id": "linde_by_contract_number",
+      "arm": "baseline",
+      "question": "JSUS2024059 propane rental fee 是多少？",
+      "question_class": "entity",
+      "answer": "根据上述数据，未找到合同编号为 **JSUS2024059** 的相关信息。\n\n数据中仅包含合同编号为 2026004、CN2026002、2026002 和 2024030 的元数据。虽然合同 2026002（Linde Gas & Equipment Inc.）提及了气瓶租赁费（从 $281.36 下降至 $265），但其编号与您查询的并不匹配。",
+      "answer_similarity": 0.8038806588306642,
+      "retrieval_coverage": 0.0,
+      "expected_contract_ids": [
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026004",
+        "CN2026002",
+        "2026002",
+        "2024030"
+      ],
+      "top1_expected": false,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.25,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "linde_by_contract_number",
+      "arm": "agent",
+      "question": "JSUS2024059 propane rental fee 是多少？",
+      "question_class": "entity",
+      "answer": "根据提供的数据，没有 ID 为 **JSUS2024059** 的合同。\n\n关于丙烷及相关租赁费的信息，数据中仅在 ID 为 **2026002**（Linde Gas & Equipment Inc.）的合同中有提及：其每个月的气瓶租赁费已由 $281.36 下降至 **$265**。",
+      "answer_similarity": 0.7689757001973013,
+      "retrieval_coverage": 0.0,
+      "expected_contract_ids": [
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026004",
+        "CN2026002",
+        "2026002",
+        "2024030"
+      ],
+      "top1_expected": false,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.25,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {
+        "iterations": 0
+      }
+    },
+    {
+      "id": "linde_by_file_no",
+      "arm": "baseline",
+      "question": "2026002 propane rental fee 是多少？",
+      "question_class": "entity",
+      "answer": "根据提供的数据，合同 **2026002**（Linde Gas & Equipment Inc.）的相关费用信息如下：\n\n*   **气瓶租赁费**：每个月由 $281.36 下降至 **$265**。\n*   **丙烷单价**：由 22 下降至 **17**（且不再额外收取运输费）。\n\n数据中没有专门列出名为 \"propane rental fee\" 的独立项，通常指代的是合同中提到的每月 **$265** 的气瓶租赁费。",
+      "answer_similarity": 0.801318263464249,
+      "retrieval_coverage": 0.0,
+      "expected_contract_ids": [
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026004",
+        "CN2026002",
+        "2026002",
+        "2024030"
+      ],
+      "top1_expected": false,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.25,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "linde_by_file_no",
+      "arm": "agent",
+      "question": "2026002 propane rental fee 是多少？",
+      "question_class": "entity",
+      "answer": "根据您提供的数据，关于合同 **2026002** 的相关费用说明如下：\n\n*   **丙烷价格 (Propane Price)**：由 22 下降至 **17**，且不再额外收取运输费。\n*   **气瓶租赁费 (Cylinder Rental Fee)**：每个月由 $281.36 下降至 **$265**。",
+      "answer_similarity": 0.7886912177231723,
+      "retrieval_coverage": 0.0,
+      "expected_contract_ids": [
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026004",
+        "CN2026002",
+        "2026002",
+        "2024030"
+      ],
+      "top1_expected": false,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.25,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {
+        "iterations": 0
+      }
+    },
+    {
+      "id": "chemaqua_by_supplier",
+      "arm": "baseline",
+      "question": "ChemAqua 这份合同的付款条款是什么？",
+      "question_class": "clause",
+      "answer": "根据合同条款，ChemAqua 的付款条款如下：\n\n1.  **付款期限与折扣**：发票的付款期限为 30 天（net 30）；如果在 10 天内付款，可享受 1% 的折扣（1% discount if paid in net 10）。\n2.  **价格有效期**：所列价格有效期为 36 个月（即 2026 年 1 月 1 日至 2028 年 12 月 31 日），合同期内价格不做任何调整。\n3.  **费用包含**：化学品单价中已包含运费（Chemical Prices include freight）。\n4.  **采购模式**：该合同为价格框架协议，采取“按需购买”（buy chemicals as needed）的模式。",
+      "answer_similarity": 0.7670723075963757,
+      "retrieval_coverage": 0.7889305836473856,
+      "expected_contract_ids": [
+        "2026004"
+      ],
+      "source_contract_ids": [
+        "2026004"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "chemaqua_by_supplier",
+      "arm": "agent",
+      "question": "ChemAqua 这份合同的付款条款是什么？",
+      "question_class": "clause",
+      "answer": "根据合同条款，ChemAqua 的付款条款如下：\n\n1.  **付款期限与折扣**：发票的付款期限为 30 天（net 30）；如果在 10 天内付款，可享受 1% 的折扣（1% discount if paid in net 10）。\n2.  **价格有效期**：所列价格有效期为 36 个月（即 2026 年 1 月 1 日至 2028 年 12 月 31 日），合同期内价格不做任何调整。\n3.  **费用包含**：化学品单价中已包含运费（Chemical Prices include freight）。\n4.  **采购模式**：该合同为价格框架协议，采取“按需购买”（buy chemicals as needed）的模式。",
+      "answer_similarity": 0.7670723075963757,
+      "retrieval_coverage": 0.7889305836473856,
+      "expected_contract_ids": [
+        "2026004"
+      ],
+      "source_contract_ids": [
+        "2026004"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 1,
+      "llm_calls_est": 3,
+      "diagnostics": {
+        "iterations": 1,
+        "filters": {
+          "name": "ChemAqua"
+        },
+        "candidate_contract_ids": [
+          "2026004"
+        ],
+        "matched_contract_ids": [
+          "2026004"
+        ],
+        "used_sql_gate": true,
+        "fallback_reason": null,
+        "supplemented_open_search": false
+      }
+    },
+    {
+      "id": "amount_over_100k_price_adjustment",
+      "arm": "baseline",
+      "question": "金额超过10万美元的合同里，哪几份有价格调整条款？",
+      "question_class": "comparison",
+      "answer": "根据提供的合同元数据，金额超过10万美元的合同仅有一份，其价格条款情况如下：\n\n**合同 ID：2026004**\n*   **交易对手：** ChemAqua\n*   **合同金额：** 147,664.05 USD\n*   **相关价格条款：** 该合同包含价格调整与锁定条款。具体描述为：“供应商初次报价较2024年合同上涨10%，经多轮谈判最终将涨幅控制在6%，并争取到**三年价格锁定条款**。”\n\n**结论：**\n在金额超过10万美元的合同中，只有 **2026004 (2026-2028 水处理合同)** 明确提到了价格调整（涨幅控制）及价格锁定条款。",
+      "answer_similarity": 0.7463091395038651,
+      "retrieval_coverage": 0.0,
+      "expected_contract_ids": [
+        "2026004"
+      ],
+      "source_contract_ids": [
+        "2026004",
+        "CN2026002",
+        "2026002",
+        "2024030"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.25,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "amount_over_100k_price_adjustment",
+      "arm": "agent",
+      "question": "金额超过10万美元的合同里，哪几份有价格调整条款？",
+      "question_class": "comparison",
+      "answer": "根据您提供的合同条款和表格内容，回答如下：\n\n1.  **包含价格调整条款的合同：**\n    **Veolia** 的合同包含明确的价格调整条款。具体包括：\n    *   **年度调价（Escalation Clause）：** 合同开始1年后，价格每年按以下两者中的较大值进行调整：(i) 2%；或 (ii) 结合了化学品及相关产品指数 (WPU06) 和生产工人平均时薪指数 (CEU0500000008) 的12个月滚动平均值（MCPE）。\n    *   **临时调价与附加费：** Veolia 保留因全球需求增加、供应受限、汇率变动、税收增加等因素随时书面通知提高价格或征收附加费的权利。\n\n2.  **年总价金额超过10万美元的合同：**\n    根据表格中的“每年预估总价”数据：\n    *   **ChemAqua (2024-2025年合同)：** 每年预估总价为 **$46,424.09**。\n    *   **ChemAqua (2026-2028年合同)：** 每年预估总价为 **$49,221.35**。\n    *   **Veolia (2026-2028年合同)：** 每年预估总价为 **$61,439.19**。\n\n**结论：**\n虽然 Veolia 合同包含价格调整条款，但根据给定内容，**没有任何一份合同的年总价超过10万美元**。表格中显示的最高年总价为 Veolia 的 $61,439.19。",
+      "answer_similarity": 0.7212224190919824,
+      "retrieval_coverage": 0.7763014212919483,
+      "expected_contract_ids": [
+        "2026004"
+      ],
+      "source_contract_ids": [
+        "2026004"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 3,
+      "llm_calls_est": 7,
+      "diagnostics": {
+        "iterations": 3,
+        "filters": {
+          "amount_min": 100000
+        },
+        "candidate_contract_ids": [
+          "2026004"
+        ],
+        "matched_contract_ids": [
+          "2026004"
+        ],
+        "used_sql_gate": true,
+        "fallback_reason": null,
+        "supplemented_open_search": false
+      }
+    },
+    {
+      "id": "pd_supplier_propane",
+      "arm": "baseline",
+      "question": "PD部门2024-2029的供应商合同里，propane rental fee是多少？",
+      "question_class": "clause",
+      "answer": "根据提供的合同条款和表格内容，PD部门2024-2029年与Linde签订的合同中，气瓶租赁费（Cylinder Rental Fee / Monthly Flat Fee Rental）为：\n\n**每月 $265.00**。\n\n注：合同简要说明中明确提到“每个月的气瓶租赁费由$281.36 下降至 $265”。虽然邮件中曾讨论过降至$260的可能性，但合同摘要表及随附的价格表均显示最终确定的金额为$265.00。",
+      "answer_similarity": 0.8118174449357184,
+      "retrieval_coverage": 0.8323808899993709,
+      "expected_contract_ids": [
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026002"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "pd_supplier_propane",
+      "arm": "agent",
+      "question": "PD部门2024-2029的供应商合同里，propane rental fee是多少？",
+      "question_class": "clause",
+      "answer": "根据提供的合同条款和表格内容，PD部门2024-2029年与Linde签订的合同中，气瓶租赁费（Cylinder Rental Fee / Monthly Flat Fee Rental）为：\n\n**每月 $265.00**。\n\n注：合同简要说明中明确提到“每个月的气瓶租赁费由$281.36 下降至 $265”。虽然邮件中曾讨论过降至$260的可能性，但合同摘要表及随附的价格表均显示最终确定的金额为$265.00。",
+      "answer_similarity": 0.8118174449357184,
+      "retrieval_coverage": 0.8323808899993709,
+      "expected_contract_ids": [
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026002"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 1,
+      "llm_calls_est": 3,
+      "diagnostics": {
+        "iterations": 1,
+        "filters": {
+          "department": "PD"
+        },
+        "candidate_contract_ids": [
+          "2026002"
+        ],
+        "matched_contract_ids": [
+          "2026002"
+        ],
+        "used_sql_gate": true,
+        "fallback_reason": null,
+        "supplemented_open_search": false
+      }
+    },
+    {
+      "id": "purchase_2026_30_days",
+      "arm": "baseline",
+      "question": "2026年到期或生效的采购合同中，哪些提到30 days？",
+      "question_class": "comparison",
+      "answer": "根据上述数据，在2026年到期或生效的合同（合同编号：2026004、CN2026002、2026002）中，**没有任何合同提到了“30 days”**。该信息在提供的数据中缺失。",
+      "answer_similarity": 0.7844322166330103,
+      "retrieval_coverage": 0.0,
+      "expected_contract_ids": [
+        "CN2026002",
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "2026004",
+        "CN2026002",
+        "2026002",
+        "2024030"
+      ],
+      "top1_expected": false,
+      "all_expected_hit": true,
+      "expected_hit_count": 2,
+      "source_precision": 0.5,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "purchase_2026_30_days",
+      "arm": "agent",
+      "question": "2026年到期或生效的采购合同中，哪些提到30 days？",
+      "question_class": "comparison",
+      "answer": "根据给定内容，符合要求的采购合同如下：\n\n**合同名称：** 埃及纸护角纸筒合同（埃及纸制包装材料采购框架合同第7批次执行订单）\n*   **卖方 (Seller's Party)：** Jushi Egypt For Fiberglass Industry S.A.E\n*   **合同编号 (Contract Number)：** JSEGRCXS20260003\n*   **生效/日期 (Date)：** 2026年3月9日（表格右上角日期及合同编号均显示为2026年）\n*   **付款条款：** 明确包含“30天”或“thirty (30) days”。具体条款为：“买方应于货到（30）天内以电汇方式向卖方全额支付100%发票金额。” (The Buyer shall, within thirty (30) days after the goods arrival date, pay to the Seller 100% of the amount as indicated on the invoice by telegraphic transfer.)\n\n注：另一份合同（Linde Gas & Equipment Inc.）虽然在2026年处于有效期内（2024-2029年），但其表格内容中未明确列出包含“30天”或“thirty (30) days”的付款条款。",
+      "answer_similarity": 0.739106138248272,
+      "retrieval_coverage": 0.6867383785556807,
+      "expected_contract_ids": [
+        "CN2026002",
+        "2026002"
+      ],
+      "source_contract_ids": [
+        "CN2026002",
+        "2026002"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 2,
+      "source_precision": 1.0,
+      "iterations": 3,
+      "llm_calls_est": 7,
+      "diagnostics": {
+        "iterations": 3,
+        "filters": {
+          "contract_type": "采购合同",
+          "year": "2026"
+        },
+        "candidate_contract_ids": [
+          "CN2026002",
+          "2026002"
+        ],
+        "matched_contract_ids": [
+          "CN2026002",
+          "2026002"
+        ],
+        "used_sql_gate": true,
+        "fallback_reason": null,
+        "supplemented_open_search": false
+      }
+    },
+    {
+      "id": "egypt_contract_number_payment",
+      "arm": "baseline",
+      "question": "JSEGRCXS20260003 的付款条件是什么？",
+      "question_class": "clause",
+      "answer": "根据提供的合同及表格内容，合同 JSEGRCXS20260003 的付款条件（Payment Terms）为：**Approved Charge³**。",
+      "answer_similarity": 0.7695739207573102,
+      "retrieval_coverage": 0.7168007804624403,
+      "expected_contract_ids": [
+        "CN2026002"
+      ],
+      "source_contract_ids": [
+        "CN2026002",
+        "2026004",
+        "2024030"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.3333333333333333,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "egypt_contract_number_payment",
+      "arm": "agent",
+      "question": "JSEGRCXS20260003 的付款条件是什么？",
+      "question_class": "clause",
+      "answer": "根据合同条款，JSEGRCXS20260003 的付款条件如下：\n\n1.  **付款时间与比例**：买方应于货到（30）天内，向卖方全额支付100%的发票金额。\n2.  **支付方式**：以电汇（Telegraphic Transfer）方式支付。\n3.  **汇率约定**：如果结算币种为人民币，汇率按付款当月第一个工作日中国人民银行公布的美元对人民币中间价折算。\n4.  **价格条款**：USD 39,041.60 / DDU Buyer's Site。",
+      "answer_similarity": 0.8117052647885115,
+      "retrieval_coverage": 0.7538754075120443,
+      "expected_contract_ids": [
+        "CN2026002"
+      ],
+      "source_contract_ids": [
+        "CN2026002"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 1,
+      "llm_calls_est": 3,
+      "diagnostics": {
+        "iterations": 1,
+        "filters": {
+          "identifier": "JSEGRCXS20260003"
+        },
+        "candidate_contract_ids": [
+          "CN2026002"
+        ],
+        "matched_contract_ids": [
+          "CN2026002"
+        ],
+        "used_sql_gate": true,
+        "fallback_reason": null,
+        "supplemented_open_search": false
+      }
+    },
+    {
+      "id": "unifirst_contract_number_payment",
+      "arm": "baseline",
+      "question": "JSUS2024030 approved charge payment terms 是什么？",
+      "question_class": "clause",
+      "answer": "根据提供的合同条款内容，合同编号为 **JSUS2024030** 的 \"Approved Charge\" 付款条款如下：\n\n*   **付款期限**：客户（CUSTOMER）同意在收到发票后的 **30天内** 支付款项。\n*   **逾期费用**：对于任何逾期金额，可能会收取每月 **1.5%**（即每年 **18%**）的滞纳金。",
+      "answer_similarity": 0.7838838116380922,
+      "retrieval_coverage": 0.7521233770394201,
+      "expected_contract_ids": [
+        "2024030"
+      ],
+      "source_contract_ids": [
+        "2024030",
+        "2026004"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 0.5,
+      "iterations": 0,
+      "llm_calls_est": 2,
+      "diagnostics": {}
+    },
+    {
+      "id": "unifirst_contract_number_payment",
+      "arm": "agent",
+      "question": "JSUS2024030 approved charge payment terms 是什么？",
+      "question_class": "clause",
+      "answer": "根据提供的合同条款和表格内容，合同编号 JSUS2024030 的 Approved Charge 付款条款如下：\n\n*   **付款期限**：客户同意在收到发票后的 **30天内** 支付款项。\n*   **逾期费用**：对于任何逾期金额，可能会收取每月 **1.5%**（即每年 **18%**）的滞纳金。",
+      "answer_similarity": 0.8001648053259316,
+      "retrieval_coverage": 0.7521233770394201,
+      "expected_contract_ids": [
+        "2024030"
+      ],
+      "source_contract_ids": [
+        "2024030"
+      ],
+      "top1_expected": true,
+      "all_expected_hit": true,
+      "expected_hit_count": 1,
+      "source_precision": 1.0,
+      "iterations": 1,
+      "llm_calls_est": 3,
+      "diagnostics": {
+        "iterations": 1,
+        "filters": {
+          "identifier": "JSUS2024030"
+        },
+        "candidate_contract_ids": [
+          "2024030"
+        ],
+        "matched_contract_ids": [
+          "2024030"
+        ],
+        "used_sql_gate": true,
+        "fallback_reason": null,
+        "supplemented_open_search": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv
+.venv/
+venv/
+env/
+
+# Notebook and editor noise
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# OCR / parsing experiment outputs (kept locally, too big for git)
+_test_2026002_out/
+_test_2026002_refpng/
+_test_2026002_gemini_out/
+_test_2026002_gemini3_out/
+_mineru_out/
+_mineru_input.pdf
+
+# MinerU — project-local install (pkg in .venv, models here). 删除整个项目目录即清空
+mineru_models/
+.mineru_cache/
+mineru_output/
+fulltest_out/
+preproc_exp/
+hybrid_out/
+
+# Demo corpus — commit the SEED (snapshot + pdfs) so `docker compose up` is full-state;
+# ignore the heavy/derived raw download + old backup (regeneratable).
+data/cuad/raw/
+data/cuad/_backup_pre_cuad/
+
+# Archived pre-refactor code / experiment notebooks (kept locally, out of repo)
+_archive/
+
+# Runtime contract storage (./storage/{contract_id}/ signed.pdf, pages) — local only
+storage/
+
+# Local tooling + personal notes (keep local, don't publish)
+.claude/
+思路过程.md
+
+# Secrets — NEVER commit (API keys, service-account JSON, ADC creds)
+.env
+.env.*
+.secrets/
+*-service-account*.json
+round-dispatch-*.json
+application_default_credentials.json

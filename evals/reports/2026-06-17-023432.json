@@ -1,0 +1,303 @@
+{
+  "experiment": "open-corpus-retrieval",
+  "dataset": "dataset_open_retrieval.jsonl",
+  "top_n": 5,
+  "summary": {
+    "n_cases": 16,
+    "top1_contract_accuracy": 0.875,
+    "contract_hit_rate": 1.0,
+    "mean_expected_contract_rank": 1.1875,
+    "retrieval_coverage": 0.7573251949416966,
+    "expected_contract_coverage": 0.7573251949416966
+  },
+  "cases": [
+    {
+      "question": "Linde propane pricing and cylinder rental fee",
+      "expected_contract_id": "2026002",
+      "top_contract_id": "2026002",
+      "retrieved_contract_ids": [
+        "2026002",
+        "2026004",
+        "2026002",
+        "2026004",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7972893592685222,
+      "expected_contract_coverage": 0.7972893592685222,
+      "note": "Linde propane/cylinder pricing"
+    },
+    {
+      "question": "Linde oxygen nitrogen argon product pricing table",
+      "expected_contract_id": "2026002",
+      "top_contract_id": "2026002",
+      "retrieved_contract_ids": [
+        "2026002",
+        "2026004",
+        "2026002",
+        "2026002",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7739687411087935,
+      "expected_contract_coverage": 0.7739687411087935,
+      "note": "Linde gas product pricing"
+    },
+    {
+      "question": "Uniform rental service charges garment preparation name emblem non stock sizes",
+      "expected_contract_id": "2024030",
+      "top_contract_id": "2024030",
+      "retrieved_contract_ids": [
+        "2024030",
+        "2024030",
+        "2024030",
+        "2024030",
+        "2024030"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7135330573457996,
+      "expected_contract_coverage": 0.7135330573457996,
+      "note": "UniFirst other charges table"
+    },
+    {
+      "question": "UniFirst payment terms approved charge COD EFT merchandise serviced",
+      "expected_contract_id": "2024030",
+      "top_contract_id": "2024030",
+      "retrieved_contract_ids": [
+        "2024030",
+        "2024030",
+        "2024030",
+        "2024030",
+        "2024030"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7819712296355309,
+      "expected_contract_coverage": 0.7819712296355309,
+      "note": "UniFirst payment terms"
+    },
+    {
+      "question": "Egypt paper corner protector paper tube core purchase quantity unit price",
+      "expected_contract_id": "CN2026002",
+      "top_contract_id": "CN2026002",
+      "retrieved_contract_ids": [
+        "CN2026002",
+        "CN2026002",
+        "2026004",
+        "CN2026002",
+        "CN2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.747394362817623,
+      "expected_contract_coverage": 0.747394362817623,
+      "note": "Egypt packaging purchase table"
+    },
+    {
+      "question": "埃及 纸护角 纸管芯 采购 发货港口 main seaport Egypt",
+      "expected_contract_id": "CN2026002",
+      "top_contract_id": "CN2026002",
+      "retrieved_contract_ids": [
+        "CN2026002",
+        "CN2026002",
+        "CN2026002",
+        "2026004",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7054865021470658,
+      "expected_contract_coverage": 0.7054865021470658,
+      "note": "Chinese query for Egypt packaging"
+    },
+    {
+      "question": "ChemAqua water treatment chemical price per pound drum pump storage tanks",
+      "expected_contract_id": "2026004",
+      "top_contract_id": "2026004",
+      "retrieved_contract_ids": [
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026004"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7919956180873456,
+      "expected_contract_coverage": 0.7919956180873456,
+      "note": "water treatment pricing"
+    },
+    {
+      "question": "water treatment contract termination limitation liability warranty force majeure",
+      "expected_contract_id": "2026004",
+      "top_contract_id": "2026004",
+      "retrieved_contract_ids": [
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.6838970345176818,
+      "expected_contract_coverage": 0.6838970345176818,
+      "note": "water treatment terms"
+    },
+    {
+      "question": "approved charge payments within 30 days of invoice receipt late charge 1.5 percent per month 18 percent per year",
+      "expected_contract_id": "2024030",
+      "top_contract_id": "2026004",
+      "retrieved_contract_ids": [
+        "2026004",
+        "2026002",
+        "2024030",
+        "2024030",
+        "2024030"
+      ],
+      "top1_contract_match": false,
+      "contract_hit": true,
+      "expected_contract_rank": 3,
+      "retrieval_coverage": 0.7656254352277257,
+      "expected_contract_coverage": 0.7656254352277257,
+      "note": "hard: payment terms, conflicts with other net-30 clauses"
+    },
+    {
+      "question": "customer exempt from price increase for first 2 years price increase years 3 4 5 addendum",
+      "expected_contract_id": "2024030",
+      "top_contract_id": "2024030",
+      "retrieved_contract_ids": [
+        "2024030",
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026004"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.8350681475994572,
+      "expected_contract_coverage": 0.8350681475994572,
+      "note": "hard: price escalation/addendum"
+    },
+    {
+      "question": "within thirty days after goods arrival pay 100 percent invoice amount by telegraphic transfer",
+      "expected_contract_id": "CN2026002",
+      "top_contract_id": "CN2026002",
+      "retrieved_contract_ids": [
+        "CN2026002",
+        "2026004",
+        "2026004",
+        "2026002",
+        "2024030"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7682382056226101,
+      "expected_contract_coverage": 0.7682382056226101,
+      "note": "hard: payment terms, Chinese/English clause"
+    },
+    {
+      "question": "shipment before March 15 2026 main seaport Charleston buyer site",
+      "expected_contract_id": "CN2026002",
+      "top_contract_id": "CN2026002",
+      "retrieved_contract_ids": [
+        "CN2026002",
+        "CN2026002",
+        "2026004",
+        "CN2026002",
+        "2026004"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7347274024521042,
+      "expected_contract_coverage": 0.7347274024521042,
+      "note": "hard: shipment and ports"
+    },
+    {
+      "question": "facility fee rental charge cylinder supply system buyer location recover cylinders equipment delinquent account",
+      "expected_contract_id": "2026002",
+      "top_contract_id": "2026002",
+      "retrieved_contract_ids": [
+        "2026002",
+        "2026002",
+        "2026002",
+        "2026002",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7284879686288719,
+      "expected_contract_coverage": 0.7284879686288719,
+      "note": "hard: equipment/rental terms, could confuse with water-treatment tanks"
+    },
+    {
+      "question": "party failed to fulfill obligation notify other party in writing within thirty days before legal action dispute resolution",
+      "expected_contract_id": "2026002",
+      "top_contract_id": "2026004",
+      "retrieved_contract_ids": [
+        "2026004",
+        "2026002",
+        "2026004",
+        "2026004",
+        "2026004"
+      ],
+      "top1_contract_match": false,
+      "contract_hit": true,
+      "expected_contract_rank": 2,
+      "retrieval_coverage": 0.7320386081427209,
+      "expected_contract_coverage": 0.7320386081427209,
+      "note": "hard: dispute resolution 30-day clause"
+    },
+    {
+      "question": "semi bulk containers SBC storage of goods return all containers owned by seller",
+      "expected_contract_id": "2026004",
+      "top_contract_id": "2026004",
+      "retrieved_contract_ids": [
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026004",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7896457127692575,
+      "expected_contract_coverage": 0.7896457127692575,
+      "note": "hard: equipment/container terms, could confuse with Linde cylinders"
+    },
+    {
+      "question": "governed by substantive laws State of New York CISG sale of goods buyer outside seller country",
+      "expected_contract_id": "2026004",
+      "top_contract_id": "2026004",
+      "retrieved_contract_ids": [
+        "2026004",
+        "2026004",
+        "2026002",
+        "2026004",
+        "2026002"
+      ],
+      "top1_contract_match": true,
+      "contract_hit": true,
+      "expected_contract_rank": 1,
+      "retrieval_coverage": 0.7678357336960352,
+      "expected_contract_coverage": 0.7678357336960352,
+      "note": "hard: governing law"
+    }
+  ]
+}

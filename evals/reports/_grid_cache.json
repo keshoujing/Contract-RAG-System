@@ -1,0 +1,21 @@
+{
+  "p1:alpha=0.3,rr=off": {
+    "context_recall": 0.8,
+    "semantic_similarity": 0.7485030894441853
+  },
+  "_tokens": {
+    "input_tokens": 46897,
+    "output_tokens": 15743,
+    "llm_calls": 20
+  },
+  "p1:alpha=0.5,rr=off": {
+    "context_recall": 0.8,
+    "semantic_similarity": 0.7733365734751901
+  },
+  "p1:alpha=0.7,rr=off": {
+    "semantic_similarity": 0.7646038949201466
+  },
+  "p2:baseline:0": {
+    "semantic_similarity": 0.7615366763251762
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-06-08T18:41:34+00:00",
+  "dataset": "dataset_2026004.jsonl",
+  "contract_id": "2026004",
+  "n_cases": 10,
+  "scores": {
+    "context_recall": 0.8,
+    "llm_context_precision_with_reference": 0.69,
+    "faithfulness": 0.8563,
+    "answer_relevancy": 0.8068,
+    "answer_correctness": 0.4354
+  }
+}

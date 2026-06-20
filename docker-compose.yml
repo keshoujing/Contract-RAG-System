@@ -1,0 +1,43 @@
+# Full demo stack: Weaviate (vectors) -> seed (import snapshot) -> backend (API)
+# -> frontend (React via nginx, proxies /api to backend). `docker compose up --build`.
+#
+# Vertex creds are NOT baked in: copy .env.docker.example -> .env.docker, fill it,
+# and drop your service-account JSON in ./.secrets/ (both git-ignored).
+services:
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.32.0
+    command: ["--host", "0.0.0.0", "--port", "8080", "--scheme", "http"]
+    environment:
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      DEFAULT_VECTORIZER_MODULE: none        # BYO vectors (gemini-embedding-2)
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      QUERY_DEFAULTS_LIMIT: "25"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    ports:
+      - "8080:8080"
+      - "50051:50051"   # gRPC (weaviate-client needs it)
+
+  backend:
+    build: .
+    depends_on:
+      - weaviate
+    env_file: .env.docker          # VERTEX_PROJECT_ID + GOOGLE_APPLICATION_CREDENTIALS (container path)
+    environment:
+      WEAVIATE_HOST: weaviate
+      DEMO_DATA: "${DEMO_DATA:-1}"  # 1 = load demo corpus on startup, 0 = empty DB (set by run.sh)
+    volumes:
+      - ./.secrets:/app/.secrets:ro   # mount SA JSON read-only at runtime
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  weaviate_data:

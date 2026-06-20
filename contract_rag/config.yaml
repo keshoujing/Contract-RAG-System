@@ -1,0 +1,46 @@
+# contract_rag configuration
+# Loaded by contract_rag/config.py via load_config(). Relative paths under
+# `paths` are resolved against the project root (the parent of this package).
+
+chunking:
+  soft_target: 800      # chars: chunker flushes a clause chunk once it reaches this
+  hard_cap: 1500        # chars: never let a chunk grow past this (single element > cap emitted whole, tagged oversized)
+  overlap: 200          # chars carried into the next chunk on a size-driven split (capped at soft_target//2)
+
+router:
+  cover_threshold: 0.95 # image-coverage ratio at/above which a page counts as "scanned" (decision 3)
+
+paths:
+  storage_dir: ./storage          # ./storage/{contract_id}/ signed.pdf, original.pdf, pages/
+  sqlite_path: ./contract_rag.db  # SQLite real-source DB (contracts/tasks/pages)
+  mineru_out: ./_mineru_out       # MinerU subprocess output root
+
+weaviate:
+  collection: JushiContract       # BYO-vector collection (vectorizer=none, cosine)
+
+retrieval:
+  alpha: 0.5            # hybrid weight: 0=pure BM25, 1=pure vector (tuned by evals/run_grid.py)
+  use_reranker: false   # Vertex Ranking API rerank of the k pool to top_n (model: models.rerank)
+  k: 20                 # candidates pulled from Weaviate before rerank/truncation
+  top_n: 5              # final chunks kept
+  history_max_messages: 8  # per-conversation message cap: replayed into the agent AND the threshold at which the UI forces a new conversation
+
+mineru:
+  method: txt          # digital PDFs use the txt method (decision: digital_parsing_evaluation.md)
+  backend: pipeline
+  lang: ch
+
+models:
+  vision: gemini-3-flash-preview   # embedded-image validity + description (pdf_parsing.md)
+  ocr: gemini-3-flash-preview      # scanned-page OCR (ocr_evaluation.md: Gemini 3 Flash selected)
+  approval: gemini-3-flash-preview # approval-page structured extraction (decision 4: small/flash LLM, not pro)
+  ocr_render_dpi: 200              # DPI to render scan pages at before sending to the OCR model
+  ocr_max_workers: 3               # scanned-page OCR page concurrency; keep bounded for Vertex rate limits
+  rag_generate: gemini-3-flash-preview   # user-facing answer generation
+  rag_light:    gemini-2.5-flash-lite    # classify / sufficiency / rewrite (cheap judgments)
+  rag_judge:    gemini-2.5-flash         # RAGAS LLM-as-judge (3-flash-preview returns list-content RAGAS can't parse)
+  rerank:       semantic-ranker-default@latest  # Vertex Ranking API model (retrieval.use_reranker); managed cross-encoder, replaces OOM-y bge
+
+excel:                  # transition-period Excel ledger sync (decision 15); detachable
+  enabled: false        # false = disconnect Excel entirely (core never depends on it)
+  path: ./contract_ledger.xlsx   # the human-owned business ledger workbook

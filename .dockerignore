@@ -1,0 +1,25 @@
+# Keep the build context small & the image clean.
+.git
+.venv
+_archive
+mineru_models
+storage
+data/cuad/raw
+data/cuad/_backup_pre_cuad
+**/__pycache__
+*.pyc
+.pytest_cache
+.benchmarks
+.mypy_cache
+.ruff_cache
+frontend/node_modules
+frontend/dist
+tests
+evals/reports
+.claude
+.DS_Store
+思路过程.md
+# Secrets are mounted at runtime, never baked into the image.
+.env
+.env.*
+.secrets
