@@ -6,7 +6,8 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi import Response
 
-from contract_rag.api.schemas import QueryRequest, QueryResponse
+from contract_rag.api.schemas import FeedbackRequest, QueryRequest, QueryResponse
+from contract_rag.retrieval import observability
 from contract_rag.retrieval.agent import answer_with_evidence, history_limit
 from contract_rag.storage import db
 
@@ -70,11 +71,12 @@ def query(req: QueryRequest) -> QueryResponse:
         raise HTTPException(status_code=502, detail="retrieval backend unavailable")
     db.rename_conversation_if_default(conversation_id, req.question)
     db.append_conversation_message(conversation_id, role="user", content=req.question)
-    db.append_conversation_message(
+    assistant = db.append_conversation_message(
         conversation_id,
         role="assistant",
         content=result.answer,
         evidence=result.evidence,
+        run_id=result.diagnostics.get("run_id"),
     )
     # This turn added 2 messages (user + assistant) to the prior history.
     conversation_full = (len(history) + 2) >= history_limit()
@@ -82,9 +84,21 @@ def query(req: QueryRequest) -> QueryResponse:
         question=result.question,
         answer=result.answer,
         conversation_id=conversation_id,
+        message_id=assistant["message_id"],
         conversation_full=conversation_full,
         evidence=result.evidence,
     )
+
+
+@router.post("/qa/messages/{message_id}/feedback")
+def submit_feedback(message_id: str, req: FeedbackRequest) -> dict:
+    """Record a 👍/👎 on an assistant answer: persist it (gold flywheel source)
+    and forward it to the query's LangSmith run (best-effort)."""
+    feedback = db.add_message_feedback(message_id, req.score, req.comment)
+    if feedback is None:
+        raise HTTPException(status_code=404, detail="message not found")
+    observability.record_user_feedback(feedback["run_id"], req.score, req.comment)
+    return feedback
 
 
 def _scope_from_request(req: QueryRequest) -> tuple[str | None, str | None]:

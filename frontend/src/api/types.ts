@@ -104,10 +104,20 @@ export interface QueryClauseEvidence {
 
 export type QueryEvidence = QueryRecordEvidence | QueryClauseEvidence;
 
+export type FeedbackScore = "up" | "down";
+
+export interface FeedbackPayload {
+  messageId: string;
+  score: FeedbackScore;
+  comment?: string;
+}
+
 export interface QueryResponse {
   question: string;
   answer: string;
   conversation_id?: string | null;
+  // Assistant message id of this answer — the target for 👍/👎 feedback.
+  message_id?: string;
   conversation_full?: boolean;
   evidence: QueryEvidence[];
 }
@@ -126,6 +136,7 @@ export interface QaMessage {
   role: "user" | "assistant";
   content: string;
   evidence: QueryEvidence[];
+  feedback?: FeedbackScore | null;
   created_at: string;
 }
 

@@ -280,3 +280,17 @@ tool-calling agent 已落地并接上 `POST /api/query`。计划：`docs/superpo
 - **验证方式**：stub 掉 `agent_tools.search_clauses/query_ledger`（同 `run_injection`）只打真 Gemini 跑一次 `answer_with_evidence`，`wait_for_all_tracers()` flush；实测 tool_rounds=2 / latency≈8.2s / total_tokens≈3042。
 
 **范围**：本轮只做增量1（后端）。增量2（前端 👍/👎 → `create_feedback` 回流，需透出 run_id 改 API+React）、增量3（CI 回归闸 + 线上 groundedness 自动反馈）**未做**，按用户选择留后续。⚠️ LangSmith key 曾明文出现在对话里，需轮换。
+
+## LangSmith 可观测性 · 增量2（反馈飞轮：👍/👎 落库 + 回流 + 喂 gold，2026-06-22）
+
+**一句话（做了什么→避免什么）**：给每条回答加 👍/👎，落自己的库 + 回流 LangSmith feedback，再把 👎 导成 gold 回归候选，避免「线上质量只能靠人肉看 trace、踩过的错答没有沉淀成回归测试」。
+
+> 链路：前端按钮 → `POST /api/qa/messages/{message_id}/feedback` → `db.qa_feedback` 落库 + `observability.record_user_feedback` 回流 LangSmith → `scripts/feedback_to_gold.py` 把 👎 导成候选 → 人工修正并入 `evals/dataset_*.jsonl`。契约见 `docs/INTERFACE.md` §5「Answer feedback」。
+
+- **串 id**：`answer_with_evidence` 把 `get_current_run_tree().id` 放进 `diagnostics["run_id"]`；`/api/query` 把 run_id 存到 `qa_messages.run_id`（新列，幂等迁移 `_migrate_qa`）并把 assistant `message_id` 回给前端（`QueryResponse.message_id`）。反馈端点按 message_id 查到 run_id→落 `qa_feedback`（PK=message_id，重投票 `INSERT OR REPLACE`）+ LangSmith `create_feedback`。
+- **best-effort 回流**：`record_user_feedback` 在无 run_id / `LANGSMITH_TRACING!=true` 时 no-op，LangSmith 异常 try/except 吞掉——**DB 才是 source of truth**，遥测不能拖垮用户操作。
+- **喂 gold 的关键原则**：用户的 👍/👎 是**信号不是 ground truth**。`feedback_to_gold.py` 默认只导 👎（回归价值最大），`ground_truth` 留空，强制人工修正后再并入 gold；绝不自动把用户标签当标准答案，否则噪声污染基线。`question_for`（取前一条 user 提问）/`to_gold_candidate` 是纯函数有单测。
+- **前端**：`FeedbackButtons`（aria-label 有帮助/没帮助）挂在 `AnswerCard` 底部,乐观更新 + 失败回退;`get_conversation_messages` 带出 `feedback` 列,刷新后保留投票态。本地预览模式 `submitFeedback` 静默兜底。
+- **测试**：DB/路由 `tests/api/test_feedback.py`、纯函数 `tests/evals/test_feedback_gold.py` + `observability.feedback_score_value`、前端 `frontend/src/__tests__/feedback.test.tsx`(3)。后端 349 passed,前端 102 passed,tsc 干净。
+
+**范围**：增量2 完成(👍/👎 落库 + 回流 + curation 脚本)。增量3(CI 回归闸 + 线上 groundedness 自动反馈)仍未做。

@@ -464,3 +464,10 @@ button, input, textarea, select { font: inherit; }
   .thumbnail-grid { grid-template-columns: repeat(2, 1fr); }
   .drawer { width: min(100vw, 564px); }
 }
+
+/* Q&A answer feedback (👍/👎 -> gold flywheel) */
+.qa-feedback { display: flex; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+.qa-feedback-label { font-size: 12px; color: var(--fg-secondary); margin-right: 2px; }
+.qa-feedback-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-primary); color: var(--fg-secondary); cursor: pointer; }
+.qa-feedback-btn:hover { border-color: var(--border-strong); color: var(--fg-primary); }
+.qa-feedback-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }

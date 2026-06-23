@@ -84,10 +84,19 @@ class QueryRequest(BaseModel):
     scope_value: str | None = None
 
 
+class FeedbackRequest(BaseModel):
+    """A user 👍/👎 on an assistant answer (the gold-flywheel signal)."""
+
+    score: Literal["up", "down"]
+    comment: str | None = None
+
+
 class QueryResponse(BaseModel):
     question: str
     answer: str
     conversation_id: str | None = None
+    # Assistant message id of this answer — the target for 👍/👎 feedback.
+    message_id: str | None = None
     # True once the conversation hits the message cap (retrieval.history_max_messages):
     # the UI warns and forces a new conversation so older turns never drop from context.
     conversation_full: bool = False

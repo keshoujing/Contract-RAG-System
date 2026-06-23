@@ -230,24 +230,18 @@ def answer_with_evidence(
 
     parsed = _parse_final(response.content)
     latency_ms = round((time.perf_counter() - t0) * 1000)
-    diagnostics = {"tool_rounds": rounds, "latency_ms": latency_ms, "tokens": usage}
-    result = _assemble(question, parsed, collected_chunks, collected_records, diagnostics)
-    _record_run_metadata(result.evidence, rounds, latency_ms, usage)
-    return result
-
-
-def _record_run_metadata(evidence: list[dict], tool_rounds: int,
-                         latency_ms: int, usage: dict) -> None:
-    """Attach per-query metrics to the active LangSmith run; no-op if tracing is
-    off (``get_current_run_tree`` returns ``None``)."""
     run = get_current_run_tree()
-    if run is None:
-        return
-    run.add_metadata({
-        **observability.evidence_metrics(evidence, tool_rounds),
-        "latency_ms": latency_ms,
-        "tokens": usage,
-    })
+    run_id = str(run.id) if run is not None else None
+    diagnostics = {"tool_rounds": rounds, "latency_ms": latency_ms,
+                   "tokens": usage, "run_id": run_id}
+    result = _assemble(question, parsed, collected_chunks, collected_records, diagnostics)
+    if run is not None:
+        run.add_metadata({
+            **observability.evidence_metrics(result.evidence, rounds),
+            "latency_ms": latency_ms,
+            "tokens": usage,
+        })
+    return result
 
 
 def _supplier_contract_ids(supplier_name: str) -> list[str]:

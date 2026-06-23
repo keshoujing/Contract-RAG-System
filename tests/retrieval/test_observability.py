@@ -35,3 +35,8 @@ def test_add_usage_none_returns_unchanged_copy():
     out = obs.add_usage(acc, None)
     assert out == acc
     assert out is not acc  # immutable: a new object, original untouched
+
+
+def test_feedback_score_value_maps_thumbs():
+    assert obs.feedback_score_value("up") == 1.0
+    assert obs.feedback_score_value("down") == 0.0

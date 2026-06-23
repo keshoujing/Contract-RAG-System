@@ -55,6 +55,9 @@ storage/
 .claude/
 思路过程.md
 
+# Generated curation output from scripts/feedback_to_gold.py (may hold user data)
+evals/feedback_candidates.jsonl
+
 # Secrets — NEVER commit (API keys, service-account JSON, ADC creds)
 .env
 .env.*

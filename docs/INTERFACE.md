@@ -248,6 +248,7 @@ composer, shows 「开启新对话」). Default cap: 8 messages (≈4 turns).
 ```json
 {
   "answer": "natural-language answer (may reference the evidence below)",
+  "message_id": "8f3c…",
   "evidence": [
     { "kind": "record", "contract_id": "JSUS2024042",
       "title": "Herui 劳务外包", "fields": { "付款期限": "90 天", "金额": "¥1,860,000" } },
@@ -258,6 +259,10 @@ composer, shows 「开启新对话」). Default cap: 8 messages (≈4 turns).
   ]
 }
 ```
+
+- **`message_id`** — id of this assistant turn; the target for 👍/👎 feedback (below).
+  Persisted conversation messages (`GET /qa/conversations/{id}`) carry it too, plus
+  a `feedback` field (`"up" | "down" | null`) so the UI can show a prior vote.
 
 - **`answer`** — natural language prose answer.
 - **`evidence[]`** — flat, ordered list; each item is self-describing via `kind`.
@@ -344,6 +349,22 @@ vector. Two layers:
   by `evals/run_injection.py` over `evals/dataset_injection.jsonl` (canary leak
   into the answer); structured leak is reported too and should stay 0 thanks to
   the structural layer.
+
+### Answer feedback — `POST /qa/messages/{message_id}/feedback` (gold flywheel)
+
+A 👍/👎 on an assistant answer. Body: `{ "score": "up" | "down", "comment": string? }`.
+
+- **404** if `message_id` is not an assistant message; **422** on an invalid `score`.
+- Persisted to the `qa_feedback` table (one vote per message; re-voting replaces),
+  and forwarded best-effort to the answer's LangSmith run as feedback
+  (`key="user_score"`, 1.0/0.0) — a LangSmith failure never fails the request,
+  since the DB is the source of truth.
+- Returns the stored feedback `{ message_id, run_id, score, comment, created_at }`.
+- **Flywheel close** (offline, human-in-the-loop): `scripts/feedback_to_gold.py`
+  exports 👎 answers as *candidate* regression cases to
+  `evals/feedback_candidates.jsonl` — with **empty `ground_truth`**. A user vote is
+  a signal, not ground truth: fix the answer, fill `ground_truth`, then merge
+  keepers into `evals/dataset_*.jsonl`.
 
 ---
 

@@ -1,11 +1,16 @@
-"""Per-query observability metrics for the agent (STUB, TDD).
+"""Per-query observability for the agent.
 
-Pure helpers that summarize a finished query into the metadata we attach to the
+Pure helpers that summarize a finished query into the metadata attached to the
 LangSmith run in ``agent.answer_with_evidence`` (tool rounds, token cost,
-grounding outcome). Kept pure/deterministic so they're unit-tested; the actual
-trace attachment is the integration boundary.
+grounding outcome) — kept deterministic so they're unit-tested — plus
+``record_user_feedback``, the (integration) forwarding of a user 👍/👎 to the
+run's LangSmith feedback.
 """
 from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 _TOKEN_KEYS = ("input_tokens", "output_tokens", "total_tokens")
 
@@ -26,3 +31,29 @@ def add_usage(acc: dict, usage: dict | None) -> dict:
     if not usage:
         return dict(acc)
     return {k: int(acc.get(k, 0)) + int(usage.get(k, 0) or 0) for k in _TOKEN_KEYS}
+
+
+def feedback_score_value(score: str) -> float:
+    """Map a 👍/👎 to the LangSmith numeric score (1.0 = up, 0.0 = down)."""
+    return 1.0 if score == "up" else 0.0
+
+
+def record_user_feedback(run_id: str | None, score: str, comment: str | None = None) -> None:
+    """Forward a user 👍/👎 to LangSmith as feedback on the query's run.
+
+    Best-effort: no-op when there's no run_id or tracing is disabled, and any
+    LangSmith error is swallowed (the user's vote is already persisted in our DB,
+    which is the source of truth for the gold flywheel)."""
+    import os
+
+    if not run_id or os.getenv("LANGSMITH_TRACING", "").lower() != "true":
+        return
+    try:
+        from langsmith import Client
+
+        Client().create_feedback(
+            run_id, key="user_score",
+            score=feedback_score_value(score), comment=comment or None,
+        )
+    except Exception as e:  # noqa: BLE001 — telemetry must never break the request
+        logger.warning("LangSmith feedback failed for run %s: %r", run_id, e)

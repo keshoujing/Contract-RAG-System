@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { askQuestion, createQaConversation, deleteQaConversation, getConfig, getConflicts, getContract, getContracts, getProcessingRows, getQaConversation, getQaConversations, resolveConflict, retryContractSync } from "./client";
+import { askQuestion, createQaConversation, deleteQaConversation, getConfig, getConflicts, getContract, getContracts, getProcessingRows, getQaConversation, getQaConversations, resolveConflict, retryContractSync, submitFeedback } from "./client";
 import type { ProcessingRow } from "./types";
 
 interface ContractQuery {
@@ -70,6 +70,10 @@ export function useConfig() {
 
 export function useAskQuestion() {
   return useMutation({ mutationFn: askQuestion });
+}
+
+export function useSubmitFeedback() {
+  return useMutation({ mutationFn: submitFeedback });
 }
 
 export function useQaConversations() {

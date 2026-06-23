@@ -1,4 +1,4 @@
-import type { ConfigState, ConflictField, ContractRow, FileNoRule, PageRole, ProcessingRow, QaConversationDetail, QaConversationSummary, QueryResponse, ResolveConflictPayload } from "./types";
+import type { ConfigState, ConflictField, ContractRow, FeedbackPayload, FileNoRule, PageRole, ProcessingRow, QaConversationDetail, QaConversationSummary, QueryResponse, ResolveConflictPayload } from "./types";
 import { configState, conflicts, contracts, processingRows } from "./mockData";
 
 export interface ContractListResult {
@@ -318,6 +318,16 @@ export async function askQuestion(payload: {
       answer: "本地预览模式下无法连接 RAG 服务。接入后这里会显示基于合同证据的回答。",
       evidence: []
     };
+  }
+}
+
+export async function submitFeedback({ messageId, score, comment }: FeedbackPayload): Promise<void> {
+  try {
+    await postJson<unknown>(`/qa/messages/${encodeURIComponent(messageId)}/feedback`, { score, comment: comment ?? null });
+  } catch (error) {
+    // Preview/offline mode has no backend to record into; swallow so the UI can
+    // still reflect the vote optimistically.
+    if (error instanceof ApiError && !isMissingLocalApi(error)) throw error;
   }
 }
 

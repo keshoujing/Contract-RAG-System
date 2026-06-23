@@ -1,9 +1,9 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Plus, RotateCcw, RotateCw, Search, Send, Trash2, X } from "lucide-react";
-import { useAskQuestion, useCreateQaConversation, useDeleteQaConversation, useQaConversation, useQaConversations } from "../../api/hooks";
+import { ExternalLink, Plus, RotateCcw, RotateCw, Search, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react";
+import { useAskQuestion, useCreateQaConversation, useDeleteQaConversation, useQaConversation, useQaConversations, useSubmitFeedback } from "../../api/hooks";
 import { contractPageUrl } from "../../api/client";
-import type { QaConversationDetail, QueryClauseEvidence, QueryEvidence, QueryRecordEvidence, QueryResponse } from "../../api/types";
+import type { FeedbackScore, QaConversationDetail, QueryClauseEvidence, QueryEvidence, QueryRecordEvidence, QueryResponse } from "../../api/types";
 import { Button } from "../../components/ui/Button";
 import { Card, PageHeader } from "../../components/ui/Panel";
 
@@ -11,6 +11,7 @@ interface ConversationTurn {
   question: string;
   status: "pending" | "done" | "error";
   response?: QueryResponse;
+  feedback?: FeedbackScore | null;
 }
 
 interface VerifyState {
@@ -27,6 +28,7 @@ export function QuestionAnswerPage() {
   const conversations = useQaConversations();
   const createConversation = useCreateQaConversation();
   const deleteConversation = useDeleteQaConversation();
+  const submitFeedback = useSubmitFeedback();
   const [question, setQuestion] = useState("");
   const [scopeType, setScopeType] = useState<ScopeType>("all");
   const [scopeValue, setScopeValue] = useState("");
@@ -102,6 +104,16 @@ export function QuestionAnswerPage() {
     setDeleteTarget(null);
   }
 
+  function handleFeedback(messageId: string, score: FeedbackScore) {
+    setTurns((current) => current.map((turn) =>
+      turn.response?.message_id === messageId ? { ...turn, feedback: score } : turn));
+    void submitFeedback.mutateAsync({ messageId, score }).catch(() => {
+      // Revert the optimistic vote if persisting failed.
+      setTurns((current) => current.map((turn) =>
+        turn.response?.message_id === messageId ? { ...turn, feedback: null } : turn));
+    });
+  }
+
   return (
     <>
       <PageHeader
@@ -171,7 +183,7 @@ export function QuestionAnswerPage() {
             {turns.length > 0 ? (
               <div className="qa-conversation-stack">
                 {turns.map((turn, index) => (
-                  <Conversation key={`${turn.question}-${index}`} turn={turn} onVerify={(source) => setVerifying({ source, page: source.page ?? 1 })} />
+                  <Conversation key={`${turn.question}-${index}`} turn={turn} onVerify={(source) => setVerifying({ source, page: source.page ?? 1 })} onFeedback={handleFeedback} />
                 ))}
               </div>
             ) : (
@@ -227,13 +239,13 @@ export function QuestionAnswerPage() {
   }
 }
 
-function Conversation({ turn, onVerify }: { turn: ConversationTurn; onVerify: (source: QueryClauseEvidence) => void }) {
+function Conversation({ turn, onVerify, onFeedback }: { turn: ConversationTurn; onVerify: (source: QueryClauseEvidence) => void; onFeedback: (messageId: string, score: FeedbackScore) => void }) {
   return (
     <div className="qa-conversation">
       <div className="qa-question-bubble">{turn.question}</div>
       {turn.status === "pending" ? <ThinkingCard /> : null}
       {turn.status === "error" ? <ErrorAnswerCard /> : null}
-      {turn.status === "done" && turn.response ? <AnswerCard response={turn.response} onVerify={onVerify} /> : null}
+      {turn.status === "done" && turn.response ? <AnswerCard response={turn.response} feedback={turn.feedback} onVerify={onVerify} onFeedback={onFeedback} /> : null}
     </div>
   );
 }
@@ -258,8 +270,9 @@ function ErrorAnswerCard() {
   );
 }
 
-function AnswerCard({ response, onVerify }: { response: QueryResponse; onVerify: (source: QueryClauseEvidence) => void }) {
+function AnswerCard({ response, feedback, onVerify, onFeedback }: { response: QueryResponse; feedback?: FeedbackScore | null; onVerify: (source: QueryClauseEvidence) => void; onFeedback: (messageId: string, score: FeedbackScore) => void }) {
   const { records, clauses } = useMemo(() => partitionEvidence(response.evidence), [response.evidence]);
+  const messageId = response.message_id;
 
   return (
     <article className="qa-answer-card">
@@ -267,7 +280,34 @@ function AnswerCard({ response, onVerify }: { response: QueryResponse; onVerify:
       {records.length > 0 ? <RecordEvidenceTable records={records} /> : null}
       {clauses.length > 0 ? <ClauseEvidenceList clauses={clauses} onVerify={onVerify} /> : null}
       {records.length === 0 && clauses.length === 0 ? <p className="qa-muted">暂无可追溯来源</p> : null}
+      {messageId ? <FeedbackButtons value={feedback} onVote={(score) => onFeedback(messageId, score)} /> : null}
     </article>
+  );
+}
+
+export function FeedbackButtons({ value, onVote }: { value?: FeedbackScore | null; onVote: (score: FeedbackScore) => void }) {
+  return (
+    <div className="qa-feedback" role="group" aria-label="回答反馈">
+      <span className="qa-feedback-label">这条回答有帮助吗？</span>
+      <button
+        type="button"
+        className={`qa-feedback-btn ${value === "up" ? "active" : ""}`}
+        aria-label="有帮助"
+        aria-pressed={value === "up"}
+        onClick={() => onVote("up")}
+      >
+        <ThumbsUp size={14} />
+      </button>
+      <button
+        type="button"
+        className={`qa-feedback-btn ${value === "down" ? "active" : ""}`}
+        aria-label="没帮助"
+        aria-pressed={value === "down"}
+        onClick={() => onVote("down")}
+      >
+        <ThumbsDown size={14} />
+      </button>
+    </div>
   );
 }
 
@@ -410,8 +450,10 @@ function turnsFromConversation(conversation: QaConversationDetail): Conversation
         question: current.question,
         answer: message.content,
         conversation_id: conversation.conversation_id,
+        message_id: message.message_id,
         evidence: message.evidence || []
       };
+      current.feedback = message.feedback ?? null;
     }
   }
   return turns;
