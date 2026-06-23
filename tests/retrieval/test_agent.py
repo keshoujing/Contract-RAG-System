@@ -4,7 +4,7 @@ The live agent (Gemini tool-calling loop) is an integration entry point, not in
 the unit gate. Here we test the deterministic glue: parsing the model's final
 JSON and assembling/back-filling evidence.
 """
-from contract_rag.retrieval import agent
+from contract_rag.retrieval import agent, grounding
 
 
 def test_parse_final_plain_json():
@@ -37,27 +37,44 @@ def test_parse_final_repairs_stray_token():
     assert parsed["evidence"][0]["contract_id"] == "c"
 
 
-def test_assemble_backfills_clause_and_keeps_record():
+def test_assemble_backfills_clause_and_projects_record():
+    # Clause snippet is a real excerpt -> kept + page/bbox back-filled.
+    # Record value is re-projected from the real ledger row: the LLM's bogus
+    # 99.0 must not survive; the ledger's 12345.0 wins.
     parsed = {
         "answer": "结论。",
         "evidence": [
             {"kind": "clause", "contract_id": "c1", "section": "付款",
              "snippet": "逾期按万分之五"},
-            {"kind": "record", "contract_id": "c2", "fields": {"金额": "¥1"}},
+            {"kind": "record", "contract_id": "c2", "fields": {"金额": 99.0}},
         ],
     }
     chunks = [{"contract_id": "c1", "page": 2, "section": "付款",
                "snippet": "审计费用分两期支付，逾期按万分之五。",
                "bbox": [1.0, 2.0, 3.0, 4.0]}]
+    rows = [{"contract_id": "c2", "counterparty": "乙方公司", "amount": 12345.0}]
 
-    res = agent._assemble("q", parsed, chunks)
+    res = agent._assemble("q", parsed, chunks, rows)
 
     assert res.answer == "结论。"
     assert res.evidence[0]["kind"] == "clause"
     assert res.evidence[0]["page"] == 2
     assert res.evidence[0]["bbox"] == [1.0, 2.0, 3.0, 4.0]
-    assert res.evidence[1] == {"kind": "record", "contract_id": "c2",
-                               "title": None, "fields": {"金额": "¥1"}}
+    rec = res.evidence[1]
+    assert rec["kind"] == "record"
+    assert rec["title"] == "乙方公司"
+    assert rec["fields"]["金额"] == 12345.0
+
+
+def test_assemble_abstains_when_all_evidence_ungrounded():
+    # Snippet isn't in any retrieved chunk -> dropped -> nothing survives ->
+    # the fabricated answer is replaced with the abstention message.
+    parsed = {"answer": "凭空捏造。", "evidence": [
+        {"kind": "clause", "contract_id": "c1", "snippet": "库里没有的片段"}]}
+    chunks = [{"contract_id": "c1", "snippet": "真实但不含该片段的内容"}]
+    res = agent._assemble("q", parsed, chunks, [])
+    assert res.evidence == []
+    assert res.answer == grounding.ABSTAIN_ANSWER
 
 
 def test_assemble_drops_malformed_evidence():
