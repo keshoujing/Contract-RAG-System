@@ -14,16 +14,19 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
+from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 
 from contract_rag.config import load_config
 from contract_rag.ingest.vision import extract_text
 from contract_rag.llm import LLM
-from contract_rag.retrieval import grounding, injection
+from contract_rag.retrieval import grounding, injection, observability
 from contract_rag.retrieval import tools as agent_tools
 from contract_rag.retrieval.evidence import normalize_evidence
 
@@ -142,6 +145,7 @@ def _tool_message_content(result: Any) -> str:
         json.dumps(result, ensure_ascii=False, default=str))
 
 
+@traceable(run_type="chain", name="answer_with_evidence")
 def answer_with_evidence(
     question: str,
     *,
@@ -151,7 +155,13 @@ def answer_with_evidence(
     temperature: float | None = None,
     max_rounds: int = MAX_TOOL_ROUNDS,
 ) -> EvidenceResult:
-    """Run the tool-calling agent and return ``{answer, evidence[]}`` (§5)."""
+    """Run the tool-calling agent and return ``{answer, evidence[]}`` (§5).
+
+    Wrapped as one LangSmith run so the per-query tool calls nest under a single
+    trace; ``_record_run_metadata`` attaches tool_rounds / latency / token cost /
+    grounding outcome (no-op when tracing is disabled)."""
+    t0 = time.perf_counter()
+    usage: dict = {}
     collected_chunks: list[dict] = []
     collected_records: list[dict] = []
     scope_cid = contract_id
@@ -200,6 +210,7 @@ def answer_with_evidence(
 
     rounds = 0
     response = model.invoke(messages)
+    usage = observability.add_usage(usage, getattr(response, "usage_metadata", None))
     while getattr(response, "tool_calls", None) and rounds < max_rounds:
         rounds += 1
         messages.append(response)
@@ -215,10 +226,28 @@ def answer_with_evidence(
                 tool_call_id=call["id"],
             ))
         response = model.invoke(messages)
+        usage = observability.add_usage(usage, getattr(response, "usage_metadata", None))
 
     parsed = _parse_final(response.content)
-    return _assemble(question, parsed, collected_chunks, collected_records,
-                     {"tool_rounds": rounds})
+    latency_ms = round((time.perf_counter() - t0) * 1000)
+    diagnostics = {"tool_rounds": rounds, "latency_ms": latency_ms, "tokens": usage}
+    result = _assemble(question, parsed, collected_chunks, collected_records, diagnostics)
+    _record_run_metadata(result.evidence, rounds, latency_ms, usage)
+    return result
+
+
+def _record_run_metadata(evidence: list[dict], tool_rounds: int,
+                         latency_ms: int, usage: dict) -> None:
+    """Attach per-query metrics to the active LangSmith run; no-op if tracing is
+    off (``get_current_run_tree`` returns ``None``)."""
+    run = get_current_run_tree()
+    if run is None:
+        return
+    run.add_metadata({
+        **observability.evidence_metrics(evidence, tool_rounds),
+        "latency_ms": latency_ms,
+        "tokens": usage,
+    })
 
 
 def _supplier_contract_ids(supplier_name: str) -> list[str]:

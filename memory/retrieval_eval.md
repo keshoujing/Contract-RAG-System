@@ -266,3 +266,17 @@ tool-calling agent 已落地并接上 `POST /api/query`。计划：`docs/superpo
 **现状**：决定论部分单测 9 passed（全量 329）。** live 防御率未跑**——交用户手动 `.venv/bin/python -m evals.run_injection`（需 Vertex 凭证）。注意 system prompt 加了安全规则，理论上可能轻微影响 baseline-vs-agent 数值，若在意可重跑 `run_baseline_vs_agent` 复核（live）。
 
 **未做（同前）**：answer 的 faithfulness LLM-judge（B）；record 出处可验证化。
+
+## LangSmith 可观测性 · 增量1（每次查询一条富 trace，2026-06-22）
+
+**一句话（做了什么→避免什么）**：把 `answer_with_evidence` 包成**一条** LangSmith trace（工具调用嵌套其下），并附 per-query 指标，避免「上线后不知道它是否还正常、慢不慢、贵不贵、有没有在拒答」——把散落的 LLM 调用变成可筛选的一次问答 trace。
+
+> 代码：`agent.py` 给 `answer_with_evidence` 加 `@traceable(run_type="chain")` + `_record_run_metadata`；纯指标 `contract_rag/retrieval/observability.py`（`evidence_metrics` / `add_usage`，单测 `tests/retrieval/test_observability.py`）。env 在 `.env`（gitignore）：`LANGSMITH_TRACING/ENDPOINT/API_KEY/PROJECT`，由 [llm.py] 的 `load_dotenv()` 自动加载。
+
+- **挂在 run 上的 metadata**：`tool_rounds`、`latency_ms`、`tokens{input/output/total}`、grounding 结果 `n_clause/n_record/abstained`。同样写进 `EvidenceResult.diagnostics`（内部字段，**不对前端暴露**，故 INTERFACE.md 未改）。
+- **token 来源**：累加每次 `model.invoke()` 返回的 `usage_metadata`（不依赖 eval 的 `token_tracker`，避免生产代码反向依赖 evals）。
+- **关 trace 即无副作用**：没设 `LANGSMITH_TRACING` 时 `@traceable` 透传、`get_current_run_tree()` 返 None → `_record_run_metadata` no-op；单测不发网络（334 passed）。
+- **注意**：`.env` 现在默认 `LANGSMITH_TRACING=true`，所以**本地跑 eval 也会产生 trace**、消耗 LangSmith 配额；不想要时注释掉该行。
+- **验证方式**：stub 掉 `agent_tools.search_clauses/query_ledger`（同 `run_injection`）只打真 Gemini 跑一次 `answer_with_evidence`，`wait_for_all_tracers()` flush；实测 tool_rounds=2 / latency≈8.2s / total_tokens≈3042。
+
+**范围**：本轮只做增量1（后端）。增量2（前端 👍/👎 → `create_feedback` 回流，需透出 run_id 改 API+React）、增量3（CI 回归闸 + 线上 groundedness 自动反馈）**未做**，按用户选择留后续。⚠️ LangSmith key 曾明文出现在对话里，需轮换。
