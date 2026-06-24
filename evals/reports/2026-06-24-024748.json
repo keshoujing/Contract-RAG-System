@@ -1,0 +1,201 @@
+{
+  "experiment": "multihop-baseline",
+  "summary": {
+    "n_cases": 11,
+    "repeats": 3,
+    "f1_mean": 0.727,
+    "recall_mean": 0.727,
+    "precision_mean": 0.727,
+    "answer_similarity_mean": 0.737,
+    "tool_rounds_mean": 2.64
+  },
+  "cases": [
+    {
+      "id": "max_amount",
+      "kind": "aggregation-max",
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "answer_similarity": 0.6268983453052526,
+      "tool_rounds": 6.0,
+      "expected": [
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT"
+      ],
+      "sample_returned": [],
+      "sample_answer": "未找到足以支撑回答的合同依据。"
+    },
+    {
+      "id": "second_largest",
+      "kind": "aggregation-rank",
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "answer_similarity": 0.6929971234305979,
+      "tool_rounds": 2.6666666666666665,
+      "expected": [
+        "ImperialGardenResortInc_20161028_DRS_on_F-1__EX-10.13_9963189_EX-10.13_Outsourcing_Agreement"
+      ],
+      "sample_returned": [
+        "ALAMOGORDOFINANCIALCORP_12_16_1999-EX-1-AGENCY_AGREEMENT",
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT"
+      ],
+      "sample_answer": "在台账记录中，金额第二大的合同是 Alamogordo Financial Corporation 的“Common Stock Offering”代理协议（合同编号：ALAMOGORDOFINANCIALCORP_12_16_1999-EX-1-AGENCY_AGREEMENT），合同金额为 11,016,430.0 USD。该合同的对方公司是 Charles Webb & Company（Keefe, Bruyette & Woods, Inc. 的一个部门）。"
+    },
+    {
+      "id": "min_amount",
+      "kind": "aggregation-min",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": 0.879339133125533,
+      "tool_rounds": 3.0,
+      "expected": [
+        "CENTRACKINTERNATIONALINC_10_29_1999-EX-10.3-WEB_SITE_HOSTING_AGREEMENT"
+      ],
+      "sample_returned": [
+        "CENTRACKINTERNATIONALINC_10_29_1999-EX-10.3-WEB_SITE_HOSTING_AGREEMENT"
+      ],
+      "sample_answer": "在有金额记录的合同中，金额最小的一份是 Centrack International 的《网站托管协议》（WEB SITE HOSTING AGREEMENT），合同金额为每月 450 美元。该协议规定客户（Centrack International）需向 i-on 支付每月 450 美元的经常性费用。"
+    },
+    {
+      "id": "earliest_effective",
+      "kind": "aggregation-min-date",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": 0.8639745527998417,
+      "tool_rounds": 1.6666666666666667,
+      "expected": [
+        "ATMOSENERGYCORP_11_22_2002-EX-10.17-TRANSPORTATION_SERVICE_AGREEMENT"
+      ],
+      "sample_returned": [
+        "ATMOSENERGYCORP_11_22_2002-EX-10.17-TRANSPORTATION_SERVICE_AGREEMENT"
+      ],
+      "sample_answer": "生效日期最早的合同是《运输服务协议》（TRANSPORTATION SERVICE AGREEMENT），该合同于 1992 年 5 月 20 日签署生效。合同双方为 Arkansas Western Pipeline Company（运输方）与 Associated Natural Gas Company（托运方，Arkansas Western Gas Company 的一个部门）。"
+    },
+    {
+      "id": "over_10m_count",
+      "kind": "threshold-control",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": 0.8522158163711385,
+      "tool_rounds": 1.0,
+      "expected": [
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT",
+        "ImperialGardenResortInc_20161028_DRS_on_F-1__EX-10.13_9963189_EX-10.13_Outsourcing_Agreement",
+        "ALAMOGORDOFINANCIALCORP_12_16_1999-EX-1-AGENCY_AGREEMENT"
+      ],
+      "sample_returned": [
+        "ALAMOGORDOFINANCIALCORP_12_16_1999-EX-1-AGENCY_AGREEMENT",
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT",
+        "ImperialGardenResortInc_20161028_DRS_on_F-1__EX-10.13_9963189_EX-10.13_Outsourcing_Agreement"
+      ],
+      "sample_answer": "金额超过 1000 万的合同共有 3 份，涉及的公司分别是 Charles Webb & Company, a Division of Keefe, Bruyette & Woods, Inc.、Redwater LLC 以及 Chang Chen-Bin Architects Office。"
+    },
+    {
+      "id": "over_5m_count",
+      "kind": "threshold-control",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": 0.7625903984838334,
+      "tool_rounds": 1.0,
+      "expected": [
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT",
+        "ImperialGardenResortInc_20161028_DRS_on_F-1__EX-10.13_9963189_EX-10.13_Outsourcing_Agreement",
+        "ALAMOGORDOFINANCIALCORP_12_16_1999-EX-1-AGENCY_AGREEMENT",
+        "ADMA_BioManufacturing_LLC_-_Amendment_3_to_Manufacturing_Agreement",
+        "GRANTIERRAENERGYINC_05_07_2012-EX-10.6-TRANSPORTATION_CONTRACT"
+      ],
+      "sample_returned": [
+        "ADMA_BioManufacturing_LLC_-_Amendment_3_to_Manufacturing_Agreement",
+        "ALAMOGORDOFINANCIALCORP_12_16_1999-EX-1-AGENCY_AGREEMENT",
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT",
+        "GRANTIERRAENERGYINC_05_07_2012-EX-10.6-TRANSPORTATION_CONTRACT",
+        "ImperialGardenResortInc_20161028_DRS_on_F-1__EX-10.13_9963189_EX-10.13_Outsourcing_Agreement"
+      ],
+      "sample_answer": "金额超过 500 万的合同共有 5 份，涉及的金额从 674.5 万美元到 5000 万美元不等（其中一份为 1200 万新台币）。"
+    },
+    {
+      "id": "max_then_clause",
+      "kind": "multihop-sql-to-clause",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": null,
+      "tool_rounds": 2.0,
+      "expected": [
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT"
+      ],
+      "sample_returned": [
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT"
+      ],
+      "sample_answer": "在台账中金额最大的合同是《外包协议》（Outsourcing Agreement），合同编号为 ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT，金额为 50,000,000 美元。关于合同终止或解除的约定主要如下：\n\n1. **随时终止权**：公司（Company）或承包商（Contractor）均可随时终止本协议的全部或部分内容。\n2. **通知期限**：公司终止协议需提前 60 天书面通知承包商；承包商终止协议需提前 90 天书面通知公司。\n3. **费用结算**：在终止情况下，承包商在终止之日前产生的费用及应计开支应在终止后 30 天内获得支付。\n4. **对发行的影响**：协议的终止不应阻止公司开始或导致公司终止“票据发行”（Offering）。若协议终止但发行未终止，公司或其代理人有权继续使用承包商开发的与票据相关的材料。"
+    },
+    {
+      "id": "min_then_clause",
+      "kind": "multihop-sql-to-clause",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": null,
+      "tool_rounds": 2.0,
+      "expected": [
+        "CENTRACKINTERNATIONALINC_10_29_1999-EX-10.3-WEB_SITE_HOSTING_AGREEMENT"
+      ],
+      "sample_returned": [
+        "CENTRACKINTERNATIONALINC_10_29_1999-EX-10.3-WEB_SITE_HOSTING_AGREEMENT"
+      ],
+      "sample_answer": "金额最小的合同是《网站托管协议》（WEB SITE HOSTING AGREEMENT），金额为 450.0 美元。该合同由 i-on（服务提供方）与 Centrack International（客户）签署，主要内容是 i-on 为客户提供网站托管服务，包括：\n1. 维持托管网站每周 7 天、每天 24 小时的持续运行；\n2. 提供 T1 线路的互联网连接；\n3. 提供 FTP 协议访问权限，以便客户维护网站静态内容；\n4. 提供最多 10 个 POP3 协议邮箱；\n5. 每月提供最多 1 小时的免费网站管理服务（如更改密码、配置电子邮件、恢复备份文件等）。\n\n客户需自行负责网站内容的创建、维护、广告投放以及对其用户的客户支持。"
+    },
+    {
+      "id": "max_then_party_count",
+      "kind": "multihop-chain",
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "answer_similarity": 0.6269213201748618,
+      "tool_rounds": 6.0,
+      "expected": [
+        "ASPIRITYHOLDINGSLLC_05_07_2012-EX-10.6-OUTSOURCING_AGREEMENT"
+      ],
+      "sample_returned": [],
+      "sample_answer": "未找到足以支撑回答的合同依据。"
+    },
+    {
+      "id": "earliest_then_type",
+      "kind": "multihop-chain",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": 0.6128794624985608,
+      "tool_rounds": 1.6666666666666667,
+      "expected": [
+        "ATMOSENERGYCORP_11_22_2002-EX-10.17-TRANSPORTATION_SERVICE_AGREEMENT"
+      ],
+      "sample_returned": [
+        "ATMOSENERGYCORP_11_22_2002-EX-10.17-TRANSPORTATION_SERVICE_AGREEMENT"
+      ],
+      "sample_answer": "生效日期最早的合同是 1992 年 5 月 20 日生效的《运输服务协议》（TRANSPORTATION SERVICE AGREEMENT），该合同由 Arkansas Western Pipeline Company 与 Associated Natural Gas Company 签署。"
+    },
+    {
+      "id": "family_amendments",
+      "kind": "multihop-family",
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "answer_similarity": 0.7134716805024054,
+      "tool_rounds": 2.0,
+      "expected": [
+        "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV_AGREE-SERVICES_AGREEMENT_AMENDMENT",
+        "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV_AGREE-SERVICES_AGREEMENT_SECONDAMENDMENT"
+      ],
+      "sample_returned": [
+        "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV_AGREE-SERVICES_AGREEMENT_AMENDMENT",
+        "FEDERATEDGOVERNMENTINCOMESECURITIESINC_04_28_2020-EX-99.SERV_AGREE-SERVICES_AGREEMENT_SECONDAMENDMENT"
+      ],
+      "sample_answer": "在 Federated 名下的服务协议中，共有两份文件属于修订件或补充协议，均是对 2004 年 1 月 1 日签署的《服务协议》（Services Agreement）的修订：\n\n1.  **服务协议修订案（Amendment to Services Agreement）**：签署于 2009 年 3 月 30 日，主要修订了原协议附件 A 中关于“行政与风险管理”服务的条款，增加了固定收益交易执行实施等相关服务内容。\n2.  **服务协议第二修订案（Second Amendment to Services Agreement）**：签署于 2016 年 3 月 1 日，进一步补充了附件 A 的内容，增加了“权益交易与交易结算”、“基本面分析”以及“量化分析”等服务类别。"
+    }
+  ]
+}

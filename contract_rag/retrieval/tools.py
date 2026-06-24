@@ -29,12 +29,54 @@ from contract_rag.retrieval.graph import (
 from contract_rag.storage import db
 
 
+# Fields the LLM may sort on (subset of _ENTITY_FIELDS that's meaningfully
+# ordered). Anything else is ignored, so a stray sort_by can't crash the tool.
+_SORTABLE = ("amount", "effective_date", "expiration_date", "petition_date", "counterparty")
+
+
+def _coerce_limit(limit) -> int | None:
+    if isinstance(limit, bool):
+        return None
+    if isinstance(limit, int):
+        return limit if limit > 0 else None
+    if isinstance(limit, str) and limit.strip().isdigit():
+        n = int(limit)
+        return n if n > 0 else None
+    return None
+
+
+def sort_and_limit(rows: list[dict], *, sort_by=None, order="desc", limit=None) -> list[dict]:
+    """Order rows by ``sort_by`` (nulls always last, regardless of direction) and
+    keep the top ``limit``. ``order`` defaults to descending. Pure."""
+    out = list(rows)
+    if sort_by:
+        reverse = str(order or "desc").lower() != "asc"
+        present = [r for r in out if r.get(sort_by) not in (None, "")]
+        absent = [r for r in out if r.get(sort_by) in (None, "")]
+        present.sort(key=lambda r: r.get(sort_by), reverse=reverse)
+        out = present + absent
+    n = _coerce_limit(limit)
+    return out[:n] if n else out
+
+
 def query_ledger(filters: dict | None = None) -> list[dict]:
     """Return ledger rows matching ``filters`` (empty/None -> all), projected to
-    the entity fields the LLM should reason over."""
-    rows = db.list_contracts()
-    matched = [r for r in rows if _row_matches_filters(r, filters or {})]
-    return [{k: r.get(k) for k in _ENTITY_FIELDS} for r in matched]
+    the entity fields the LLM should reason over.
+
+    Besides filter keys, ``filters`` may carry ``sort_by`` (one of
+    ``_SORTABLE``), ``order`` (``desc``/``asc``), and ``limit`` (top-N) — so the
+    agent can ask for the largest/smallest/earliest directly instead of dumping
+    the whole ledger and ranking in-context (unreliable; see the multi-hop eval).
+    """
+    f = dict(filters or {})
+    sort_by = f.pop("sort_by", None)
+    order = f.pop("order", "desc")
+    limit = f.pop("limit", None)
+    if sort_by not in _SORTABLE:
+        sort_by = None
+    matched = [r for r in db.list_contracts() if _row_matches_filters(r, f)]
+    projected = [{k: r.get(k) for k in _ENTITY_FIELDS} for r in matched]
+    return sort_and_limit(projected, sort_by=sort_by, order=order, limit=limit)
 
 
 def _clause_view(source: dict) -> dict:

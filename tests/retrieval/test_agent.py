@@ -119,6 +119,12 @@ def test_history_messages_none_is_empty():
     assert agent._history_messages(None) == []
 
 
+def test_system_prompt_documents_sort_and_limit():
+    prompt = agent._SYSTEM_PROMPT
+    assert "sort_by" in prompt
+    assert "limit" in prompt
+
+
 def test_system_prompt_treats_ledger_counterparty_as_authoritative():
     prompt = agent._SYSTEM_PROMPT
     assert "合同对方/供应商/合同主体" in prompt

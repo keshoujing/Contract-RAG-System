@@ -37,6 +37,54 @@ def test_query_ledger_amount_min(monkeypatch):
     assert [r["contract_id"] for r in out] == ["2026002"]
 
 
+# --- sort + top_n (aggregation/extremum support) ---------------------------
+
+def test_sort_and_limit_desc_top1():
+    rows = [{"contract_id": "a", "amount": 10.0},
+            {"contract_id": "b", "amount": 50.0},
+            {"contract_id": "c", "amount": 30.0}]
+    out = tools.sort_and_limit(rows, sort_by="amount", order="desc", limit=1)
+    assert [r["contract_id"] for r in out] == ["b"]
+
+
+def test_sort_and_limit_asc_full():
+    rows = [{"contract_id": "a", "amount": 10.0},
+            {"contract_id": "b", "amount": 50.0},
+            {"contract_id": "c", "amount": 30.0}]
+    out = tools.sort_and_limit(rows, sort_by="amount", order="asc")
+    assert [r["contract_id"] for r in out] == ["a", "c", "b"]
+
+
+def test_sort_and_limit_nulls_always_last():
+    rows = [{"contract_id": "a", "amount": None},
+            {"contract_id": "b", "amount": 50.0}]
+    out = tools.sort_and_limit(rows, sort_by="amount", order="desc")
+    assert [r["contract_id"] for r in out] == ["b", "a"]  # null last even desc
+
+
+def test_sort_and_limit_no_sort_is_passthrough():
+    rows = [{"contract_id": "a"}, {"contract_id": "b"}]
+    assert tools.sort_and_limit(rows, sort_by=None) == rows
+
+
+def test_sort_and_limit_coerces_string_limit():
+    rows = [{"amount": 1.0}, {"amount": 3.0}, {"amount": 2.0}]
+    out = tools.sort_and_limit(rows, sort_by="amount", order="desc", limit="2")
+    assert [r["amount"] for r in out] == [3.0, 2.0]
+
+
+def test_query_ledger_sorts_and_limits(monkeypatch):
+    monkeypatch.setattr(tools.db, "list_contracts", lambda: _ROWS)
+    out = tools.query_ledger({"sort_by": "amount", "order": "desc", "limit": 1})
+    assert [r["contract_id"] for r in out] == ["2026002"]  # 70904.55 > 30000
+
+
+def test_query_ledger_ignores_unknown_sort_field(monkeypatch):
+    monkeypatch.setattr(tools.db, "list_contracts", lambda: _ROWS)
+    out = tools.query_ledger({"sort_by": "definitely_not_a_field", "limit": 5})
+    assert len(out) == 2  # no crash, no sort; limit 5 keeps both
+
+
 def _doc(content, **meta):
     return Document(page_content=content, metadata=meta)
 

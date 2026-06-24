@@ -294,3 +294,40 @@ tool-calling agent 已落地并接上 `POST /api/query`。计划：`docs/superpo
 - **测试**：DB/路由 `tests/api/test_feedback.py`、纯函数 `tests/evals/test_feedback_gold.py` + `observability.feedback_score_value`、前端 `frontend/src/__tests__/feedback.test.tsx`(3)。后端 349 passed,前端 102 passed,tsc 干净。
 
 **范围**：增量2 完成(👍/👎 落库 + 回流 + curation 脚本)。增量3(CI 回归闸 + 线上 groundedness 自动反馈)仍未做。
+
+## 多跳/分析题 baseline(2026-06-23/24,当前 agent 现状)
+
+**一句话(做了什么→发现什么)**:给「聚合/极值/排名/链式多跳」建了可复现 eval,量出当前 reactive 工具循环的真实缺口——**能 dump 全库 brute-force,但把极值/排名当结构化答案输出时不可靠(还会默默答错)**。
+
+> 代码:数据集 `evals/dataset_multihop.jsonl`(11 题,锚点来自真实台账、人工核验、无平局);纯指标 `evals/multihop.py`(`evidence_contract_ids`/`target_recall`/`target_precision`(罚 dump 刷分)/`target_f1`,单测 `tests/evals/test_multihop.py`);runner `evals/run_multihop.py`(`--repeats N` 去噪)。**主指标 = target grounding(答案证据是否落在该问真正涉及的合同),客观、不用 judge。**
+
+**去噪结果(×3,每题 3 次完全一致 → 稳定非噪声)**:`f1_mean=0.727`,recall=precision=0.727,answer_sim=0.737,tool_rounds=2.64。8/11 过,3/11 稳定挂。
+
+**3 个稳定失败(机制各异)**:
+- `max_amount`(最大是哪份)→ **拒答**(dump 后产不出有效证据)。
+- `second_largest`(第二大)→ **自信答错**:把第三大(ALAMOGORDO 1101.6万)当成第二大,跳过真·第二(ImperialGarden 1200万)。**比拒答更危险。**
+- `max_then_party_count`(最大→对方签几份)→ 拒答。
+
+**反直觉但稳定的对照(关键)**:`min_amount`/`earliest_effective`(最小/最早)都过;`max_then_clause`(最大→条款)能找对最大值(ASPIRITY 5000万)。同样 hop1「找最大」,当作 clause 输出就成、当作 record 答案就挂/错。→ 不是干净的能力边界,是**「极值/排名当答案」这条路不可靠**。
+
+**根因 + 加重因素**:`query_ledger` 只有过滤(`amount_min`/`name`/`year`…),**无 sort/top_n/max/min/count**;模型只能 dump 100 行心算排名。且**金额仅 17/100 有值(83 null)**,排序更易错。阈值类(`amount_min` 支持)反而稳过。
+
+**决策(数据指向)**:**先给 `query_ledger` 加 排序+top_n(sort_by/limit/desc),而非先建大 planner**——直接打掉这 3 个失败、改动小,然后用本 eval A/B(参考砍 reranker 的打法)。planner 留给加了聚合仍不够的更复杂题。**未做**,待 confirm。
+
+**eval 自身的坑(已修)**:首版 n=6 里 `most_contracts_party` 的 gold 写错(FEDERATED 与 Bellring/Premier 均 4 份=平局,agent 其实答对),已删;`target_recall` 单用会被「dump 全库」刷分,已加 `target_precision`/`f1`。n=11 仍小、单语料(CUAD 金额稀疏),要更稳需再扩题。
+
+### 跟进:给 query_ledger 加 sort/top_n（2026-06-24，A/B 结果）
+
+**结论:加 sort/top_n 把多跳 eval 从 f1 0.727 → 1.0,3 个失败全打掉,且更省更准。不建 planner。**
+
+> 改动:`tools.query_ledger` 支持 `sort_by`（amount/effective_date/expiration_date/petition_date/counterparty）+ `order`（desc/asc）+ `limit`（top-N），纯函数 `sort_and_limit`（nulls 永远排最后）；`_SYSTEM_PROMPT` 教模型「最大/最小/最早/排名直接用 sort+limit,别 dump 全库心算」。TDD,单测 363 passed。
+
+| 指标（×3 去噪） | baseline | +sort/top_n |
+|---|---:|---:|
+| f1_mean | 0.727 | **1.000** |
+| answer_similarity | 0.737 | **0.805** |
+| tool_rounds | 2.64 | **1.76** |
+
+`max_amount`/`second_largest`/`max_then_party_count` 三个稳定失败全部 0→1（max_then_party_count 从烧 6 轮拒答 → 2 轮答对）。
+
+**打法（= 砍 reranker 的正向版)**:先量出真瓶颈是「工具不会排序」而非「模型不会推理」→ 20 行最小改动 → 用本 eval A/B → 数据决定。**planner 留到 eval 出现 sort/top_n 解决不了的更难题（如跨源合取「自动续约 AND 金额>50万」）再上。** eval 现已饱和（1.0），从此当回归闸,要继续推进需扩更难的题。
