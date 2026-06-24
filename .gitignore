@@ -48,8 +48,10 @@ data/cuad/_backup_pre_cuad/
 # Archived pre-refactor code / experiment notebooks (kept locally, out of repo)
 _archive/
 
-# Runtime contract storage (./storage/{contract_id}/ signed.pdf, pages) — local only
-storage/
+# Runtime contract storage (./storage/{contract_id}/ signed.pdf, pages) — local only.
+# Anchored to repo root: a bare `storage/` also matched the contract_rag/storage
+# PACKAGE, which silently kept db.py / vector_store.py / snapshot.py out of git.
+/storage/
 
 # Local tooling + personal notes (keep local, don't publish)
 .claude/
