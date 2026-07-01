@@ -7,9 +7,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from contract_rag.sync import compose_file_name
-from contract_rag.sync.file_no import format_file_no
-from contract_rag.sync.models import HUMAN_FIELDS, SYSTEM_FIELDS
+from contract_rag.registry import compose_file_name
+from contract_rag.registry.file_no import format_file_no
 
 # Fields copied straight from the contracts row onto ContractRow.
 _DIRECT = (
@@ -82,27 +81,12 @@ def to_contract_row(contract: dict, *, signed_pdf_size, today: date) -> dict:
     return row
 
 
-def to_conflict_fields(conflicts: list[dict]) -> list[dict]:
-    out = []
-    for c in conflicts:
-        owner = "human" if c["field"] in HUMAN_FIELDS else "system"
-        # suggest the side that diverged from baseline; default to system.
-        suggested = "system"
-        if owner == "human" and c.get("excel") != c.get("baseline"):
-            suggested = "excel"
-        out.append({**c, "owner": owner, "suggested": suggested})
-    return out
-
-
 def to_config_state(
     *,
-    excel_enabled: bool,
     file_no_rules: dict,
     year: int,
     contract_versions: list[str] | None = None,
     rag_enabled: bool = False,
-    backup_enabled: bool = True,
-    lock_check_enabled: bool = True,
 ) -> dict:
     rules = [
         {
@@ -114,35 +98,23 @@ def to_config_state(
     ]
     return {
         "ragEnabled": bool(rag_enabled),
-        "excelEnabled": bool(excel_enabled),
-        "backupEnabled": bool(backup_enabled),
-        "lockCheckEnabled": bool(lock_check_enabled),
         "fileNoRules": rules,
         "contractVersions": contract_versions or [],
     }
 
 
-def to_processing_row(*, contract: dict, task: dict | None, sync_status: dict | None) -> dict:
+def to_processing_row(*, contract: dict, task: dict | None) -> dict:
     ingest = {
         "stage": (task or {}).get("stage", "done"),
         "status": (task or {}).get("status", "done"),
     }
     if (task or {}).get("error_message"):
         ingest["last_error"] = task["error_message"]
-    sync = {
-        "state": (sync_status or {}).get("state", "disabled"),
-        "attempts": (sync_status or {}).get("attempts", 0),
-        "updated_at": format_ts((sync_status or {}).get("updated_at")),
-    }
-    for k in ("last_error", "last_attempt_at"):
-        if (sync_status or {}).get(k):
-            sync[k] = sync_status[k]
     return {
         "contract_id": contract["contract_id"],
         "counterparty": contract.get("counterparty") or "",
         "ingest": ingest,
-        "sync": sync,
-        "updated_at": format_ts((sync_status or {}).get("updated_at") or contract.get("updated_at")),
+        "updated_at": format_ts((task or {}).get("updated_at") or contract.get("updated_at")),
     }
 
 

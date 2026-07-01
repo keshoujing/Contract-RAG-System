@@ -3,17 +3,17 @@ import { Database, FilePlus2, MessageSquare, Settings, SplitSquareHorizontal, To
 import { useConfig } from "../api/hooks";
 
 const navItems = [
-  { to: "/ledger", label: "台账", icon: Database },
-  { to: "/qa", label: "问答", icon: MessageSquare },
-  { to: "/processing", label: "入库与同步", icon: SplitSquareHorizontal },
-  { to: "/settings", label: "设置", icon: Settings }
+  { to: "/ledger", label: "Ledger", icon: Database },
+  { to: "/qa", label: "Q&A", icon: MessageSquare },
+  { to: "/processing", label: "Processing", icon: SplitSquareHorizontal },
+  { to: "/settings", label: "Settings", icon: Settings }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: config, isLoading } = useConfig();
   const ragEnabled = config?.ragEnabled ?? false;
   const StatusIcon = ragEnabled ? ToggleRight : ToggleLeft;
-  const runtimeLabel = isLoading ? "读取配置中" : getRuntimeLabel(ragEnabled, config?.excelEnabled ?? true);
+  const runtimeLabel = isLoading ? "Loading config" : getRuntimeLabel(ragEnabled);
 
   return (
     <div className="app-shell">
@@ -21,11 +21,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="brand">
           <div className="brand-mark">CR</div>
           <div>
-            <strong>合同登记系统</strong>
-            <span>Contract Registry</span>
+            <strong>Contract Registry</strong>
+            <span>Contract RAG</span>
           </div>
         </div>
-        <nav className="nav-list" aria-label="主导航">
+        <nav className="nav-list" aria-label="Main navigation">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <item.icon size={18} />
@@ -35,12 +35,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <NavLink to="/upload" className="upload-shortcut">
           <FilePlus2 size={17} />
-          上传合同
+          Upload contract
         </NavLink>
         <div className="sidebar-status">
           <StatusIcon size={18} />
           <div>
-            <strong>运行模式</strong>
+            <strong>Runtime mode</strong>
             <span>{runtimeLabel}</span>
           </div>
         </div>
@@ -50,8 +50,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function getRuntimeLabel(ragEnabled: boolean, excelEnabled: boolean) {
-  const ragLabel = ragEnabled ? "RAG 开启" : "纯录入";
-  const excelLabel = excelEnabled ? "Excel 同步开" : "仅数据库";
-  return `${ragLabel} · ${excelLabel}`;
+function getRuntimeLabel(ragEnabled: boolean) {
+  return ragEnabled ? "RAG on" : "Entry only";
 }

@@ -21,7 +21,7 @@ def test_sql_candidate_rows_can_filter_by_contract_number(monkeypatch):
              "counterparty": "Linde"}]
 
     monkeypatch.setattr(graph.db, "list_contracts", lambda: rows)
-    matched_rows, diagnostics = graph._sql_candidate_rows("JSUS2024059 的 propane rental fee 是多少？")
+    matched_rows, diagnostics = graph._sql_candidate_rows("What is the propane rental fee in JSUS2024059?")
 
     assert [r["contract_id"] for r in matched_rows] == ["2026002"]
     assert diagnostics["filters"]["identifier"] == "JSUS2024059"
@@ -34,27 +34,27 @@ def test_sql_candidate_rows_numeric_file_no_is_exact_not_suffix(monkeypatch):
     ]
     monkeypatch.setattr(graph.db, "list_contracts", lambda: rows)
 
-    matched_rows, _ = graph._sql_candidate_rows("2026002 propane rental fee 是多少？")
+    matched_rows, _ = graph._sql_candidate_rows("What is the propane rental fee in 2026002?")
 
     assert [r["contract_id"] for r in matched_rows] == ["2026002"]
 
 
 def test_sql_candidate_rows_applies_amount_and_department_filters(monkeypatch):
     rows = [
-        {"contract_id": "A", "amount": 147664.05, "department": "UD", "contract_type": "采购合同"},
-        {"contract_id": "B", "amount": 70904.55, "department": "PD", "contract_type": "采购合同"},
-        {"contract_id": "C", "amount": None, "department": "PD", "contract_type": "服务合同"},
+        {"contract_id": "A", "amount": 147664.05, "department": "UD", "contract_type": "Purchase Contract"},
+        {"contract_id": "B", "amount": 70904.55, "department": "PD", "contract_type": "Purchase Contract"},
+        {"contract_id": "C", "amount": None, "department": "PD", "contract_type": "Service Contract"},
     ]
     monkeypatch.setattr(graph.db, "list_contracts", lambda: rows)
 
-    amount_rows, amount_diag = graph._sql_candidate_rows("金额超过10万美元的合同里有哪些价格调整条款？")
-    dept_rows, dept_diag = graph._sql_candidate_rows("PD部门的采购合同里 propane fee 是多少？")
+    amount_rows, amount_diag = graph._sql_candidate_rows("Which contracts over $100,000 contain price adjustment clauses?")
+    dept_rows, dept_diag = graph._sql_candidate_rows("What is the propane fee in PD department purchase contracts?")
 
     assert [r["contract_id"] for r in amount_rows] == ["A"]
     assert amount_diag["filters"]["amount_min"] == 100000
     assert [r["contract_id"] for r in dept_rows] == ["B"]
     assert dept_diag["filters"]["department"] == "PD"
-    assert dept_diag["filters"]["contract_type"] == "采购合同"
+    assert dept_diag["filters"]["contract_type"] == "Purchase Contract"
 
 
 def test_sql_gated_retrieve_limits_to_matched_candidate_ids(monkeypatch):
@@ -71,7 +71,7 @@ def test_sql_gated_retrieve_limits_to_matched_candidate_ids(monkeypatch):
 
     monkeypatch.setattr(graph, "retrieve", _fake_retrieve)
 
-    res = graph.sql_gated_retrieve("ChemAqua 这份合同的付款条款是什么？")
+    res = graph.sql_gated_retrieve("What are the payment terms in the ChemAqua contract?")
 
     assert seen["contract_ids"] == ["2026004"]
     assert res.documents[0].metadata["contract_id"] == "2026004"
@@ -90,7 +90,7 @@ def test_sql_gated_retrieve_falls_back_when_sql_has_no_candidates(monkeypatch):
 
     monkeypatch.setattr(graph, "retrieve", _fake_retrieve)
 
-    res = graph.sql_gated_retrieve("PD部门合同里有什么条款？")
+    res = graph.sql_gated_retrieve("What clauses appear in PD department contracts?")
 
     assert seen["contract_ids"] is None
     assert res.documents[0].metadata["contract_id"] == "OPEN"
@@ -100,10 +100,10 @@ def test_sql_gated_retrieve_falls_back_when_sql_has_no_candidates(monkeypatch):
 
 def test_sql_gated_retrieve_does_not_supplement_open_search_for_structured_filters(monkeypatch):
     rows = [{"contract_id": "2026002", "file_no": "2026002", "contract_number": "JSUS2024059",
-             "contract_type": "采购合同", "expiration_date": "2026-10-02"}]
+             "contract_type": "Purchase Contract", "expiration_date": "2026-10-02"}]
     calls = []
 
-    monkeypatch.setattr(graph, "_sql_candidate_rows", lambda q: (rows, {"filters": {"contract_type": "采购合同", "year": "2026"}}))
+    monkeypatch.setattr(graph, "_sql_candidate_rows", lambda q: (rows, {"filters": {"contract_type": "Purchase Contract", "year": "2026"}}))
     monkeypatch.setattr(graph, "_indexed_contract_ids", lambda: ["2026002", "CN2026002"])
 
     def _fake_retrieve(q, **kw):
@@ -114,7 +114,7 @@ def test_sql_gated_retrieve_does_not_supplement_open_search_for_structured_filte
 
     monkeypatch.setattr(graph, "retrieve", _fake_retrieve)
 
-    res = graph.sql_gated_retrieve("2026年到期或生效的采购合同中，哪些提到30 days？")
+    res = graph.sql_gated_retrieve("Which purchase contracts effective or expiring in 2026 mention 30 days?")
 
     assert calls[0]["contract_ids"] == ["2026002"]
     assert len(calls) == 1
@@ -139,12 +139,12 @@ def test_sql_gated_retrieve_uses_metadata_question_for_sql_filters(monkeypatch):
 
     res = graph.sql_gated_retrieve(
         "rewritten price adjustment query",
-        metadata_question="金额超过10万美元的合同里，哪几份有价格调整条款？",
+        metadata_question="Which contracts over $100,000 contain price adjustment clauses?",
     )
 
     assert calls[0][0] == "rewritten price adjustment query"
     assert calls[0][1]["contract_ids"] == ["2026004"]
-    assert res.diagnostics["metadata_question"] == "金额超过10万美元的合同里，哪几份有价格调整条款？"
+    assert res.diagnostics["metadata_question"] == "Which contracts over $100,000 contain price adjustment clauses?"
     assert res.diagnostics["filters"] == {"amount_min": 100000}
 
 
@@ -192,9 +192,9 @@ def test_sql_gated_answer_uses_chunks_for_comparison_that_needs_clause_evidence(
     monkeypatch.setattr(graph.LLM, "get_custom_chat_object",
                         lambda self, model, temperature=None: _FakeChat())
 
-    res = graph.sql_gated_answer_with_sources("金额超过10万美元的合同里，哪几份有价格调整条款？")
+    res = graph.sql_gated_answer_with_sources("Which contracts over $100,000 contain price adjustment clauses?")
 
-    assert seen["question"] == "金额超过10万美元的合同里，哪几份有价格调整条款？"
+    assert seen["question"] == "Which contracts over $100,000 contain price adjustment clauses?"
     assert res.question_class == "comparison"
     assert res.answer == "2026004 has a price adjustment clause."
     assert res.contexts == ["Prices shall be adjusted annually."]
@@ -206,10 +206,10 @@ def test_sql_gated_answer_uses_chunks_for_comparison_that_needs_clause_evidence(
 
 def test_sql_gated_answer_keeps_pure_entity_questions_on_sql(monkeypatch):
     monkeypatch.setattr(graph, "classify_query", lambda q: "entity")
-    monkeypatch.setattr(graph, "entity_lookup", lambda q: "合同金额是 100。")
+    monkeypatch.setattr(graph, "entity_lookup", lambda q: "The contract amount is 100.")
     monkeypatch.setattr(graph.db, "list_contracts", lambda: [{"contract_id": "A"}])
 
-    res = graph.sql_gated_answer_with_sources("合同金额是多少？")
+    res = graph.sql_gated_answer_with_sources("What is the contract amount?")
 
     assert res.question_class == "entity"
     assert res.contexts == []

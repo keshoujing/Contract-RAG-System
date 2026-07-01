@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { askQuestion, createQaConversation, deleteQaConversation, getConfig, getConflicts, getContract, getContracts, getProcessingRows, getQaConversation, getQaConversations, resolveConflict, retryContractSync, submitFeedback } from "./client";
+import { askQuestion, createQaConversation, deleteQaConversation, getConfig, getContract, getContracts, getProcessingRows, getQaConversation, getQaConversations, submitFeedback } from "./client";
 import type { ProcessingRow } from "./types";
 
 interface ContractQuery {
@@ -33,35 +33,7 @@ export function useProcessingRows() {
 }
 
 function shouldPollProcessingRows(rows?: ProcessingRow[]) {
-  return Boolean(rows?.some((row) =>
-    row.ingest.status !== "done" ||
-    row.sync.state === "pending" ||
-    row.sync.state === "retrying" ||
-    row.sync.state === "conflict"
-  ));
-}
-
-export function useRetryContractSync() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: retryContractSync,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["processing"] })
-  });
-}
-
-export function useConflicts(contractId: string) {
-  return useQuery({ queryKey: ["conflicts", contractId], queryFn: () => getConflicts(contractId), retry: false });
-}
-
-export function useResolveConflict() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: resolveConflict,
-    onSuccess: (_result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["conflicts", variables.contractId] });
-      queryClient.invalidateQueries({ queryKey: ["processing"] });
-    }
-  });
+  return Boolean(rows?.some((row) => row.ingest.status !== "done"));
 }
 
 export function useConfig() {

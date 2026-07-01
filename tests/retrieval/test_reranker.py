@@ -105,9 +105,9 @@ def test_rerank_reorders_using_api_scores(monkeypatch):
         ]
 
     monkeypatch.setattr(reranker, "_rank_via_api", _fake_api)
-    out = reranker.rerank("付款期限", docs, top_n=2, model="m")
+    out = reranker.rerank("payment terms", docs, top_n=2, model="m")
     assert [d.page_content for d in out] == ["payment", "validity"]
-    assert captured["payload"]["query"] == "付款期限"
+    assert captured["payload"]["query"] == "payment terms"
     assert captured["payload"]["topN"] == 2
 
 

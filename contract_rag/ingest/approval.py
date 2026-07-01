@@ -94,7 +94,7 @@ Return ONLY a JSON object with EXACTLY these keys (no prose, no code fence):
   "petitioner":        string | null,   // "Petitioner"
   "petition_date":     string | null,   // the "Date" next to Petitioner, as YYYY-MM-DD
   "brief_description": string | null,   // "Brief Description" / modified content
-  "contract_type":     string | null,   // "Contract Version" cell (合同版本)
+  "contract_type":     string | null,   // "Contract Version" cell
   "_per_field_confidence":  { "<field>": 0.0-1.0 },
   "_per_field_source_span": { "<field>": "<verbatim source snippet>" }
 }

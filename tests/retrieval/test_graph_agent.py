@@ -11,15 +11,15 @@ def test_state_to_result_clause_path():
     docs = [_doc("Net 30 days.", contract_id="2026004", chunk_type="clause",
                  page_start=3, page_end=3, section_path="4 Payment")]
     state = {
-        "original_question": "付款账期？",
-        "question": "付款条款是几天？",   # rewritten — must NOT leak into result
+        "original_question": "What are the payment terms?",
+        "question": "How many days are the payment terms?",   # rewritten - must NOT leak into result
         "question_class": "clause",
         "documents": docs,
         "generation": "Net 30.",
         "iterations": 2,
     }
     res = graph._state_to_result(state)
-    assert res.question == "付款账期？"          # original, not rewritten
+    assert res.question == "What are the payment terms?"          # original, not rewritten
     assert res.question_class == "clause"
     assert res.answer == "Net 30."
     assert res.contexts == ["Net 30 days."]
@@ -31,11 +31,11 @@ def test_state_to_result_entity_path(monkeypatch):
     monkeypatch.setattr(graph.db, "list_contracts",
                         lambda: [{"contract_id": "2026004"}])
     state = {
-        "original_question": "谁是买方？",
-        "question": "谁是买方？",
+        "original_question": "Who is the buyer?",
+        "question": "Who is the buyer?",
         "question_class": "entity",
         "documents": [],
-        "generation": "China Jushi USA。",
+        "generation": "China Jushi USA.",
         "iterations": 0,
     }
     res = graph._state_to_result(state)
@@ -49,11 +49,11 @@ def test_state_to_result_comparison_with_retrieved_docs_keeps_evidence():
     docs = [_doc("30 days notice.", contract_id="2026002", chunk_type="clause",
                  page_start=2, page_end=2, section_path="Termination")]
     state = {
-        "original_question": "哪些合同提到30 days？",
+        "original_question": "Which contracts mention 30 days?",
         "question": "30 days clause",
         "question_class": "comparison",
         "documents": docs,
-        "generation": "2026002 提到 30 days。",
+        "generation": "2026002 mentions 30 days.",
         "iterations": 1,
     }
 
@@ -66,7 +66,7 @@ def test_state_to_result_comparison_with_retrieved_docs_keeps_evidence():
 
 def test_classify_node_writes_question_class(monkeypatch):
     monkeypatch.setattr(graph, "classify_query", lambda q: "clause")
-    out = graph._classify_node({"question": "付款账期？"})
+    out = graph._classify_node({"question": "What are the payment terms?"})
     assert out == {"question_class": "clause"}
 
 
@@ -82,11 +82,11 @@ def test_clause_retrieve_node_threads_params(monkeypatch):
 
     monkeypatch.setattr(graph, "sql_gated_retrieve", _fake_retrieve)
     state = {
-        "question": "付款条款？", "iterations": 0,
+        "question": "What are the payment terms?", "iterations": 0,
         "contract_id": "2026004", "alpha": 0.7, "use_reranker": False,
     }
     out = graph._clause_retrieve_node(state)
-    assert captured["question"] == "付款条款？"
+    assert captured["question"] == "What are the payment terms?"
     assert captured["contract_id"] == "2026004"
     assert captured["alpha"] == 0.7
     assert captured["use_reranker"] is False
@@ -97,12 +97,12 @@ def test_clause_retrieve_node_threads_params(monkeypatch):
 
 
 def test_route_after_classify_sends_comparison_with_clause_evidence_to_clause_path():
-    state = {"question_class": "comparison", "question": "哪些合同提到30 days？"}
+    state = {"question_class": "comparison", "question": "Which contracts mention 30 days?"}
     assert graph._route_after_classify(state) == "clause"
 
 
 def test_route_after_classify_sends_entity_with_clause_evidence_to_clause_path():
-    state = {"question_class": "entity", "question": "JSUS2024059 propane rental fee 是多少？"}
+    state = {"question_class": "entity", "question": "What is the propane rental fee in JSUS2024059?"}
     assert graph._route_after_classify(state) == "clause"
 
 
@@ -121,7 +121,7 @@ def test_generate_node_reads_temperature(monkeypatch):
         return _FakeChat()
 
     monkeypatch.setattr(graph.LLM, "get_custom_chat_object", _fake_get_chat)
-    out = graph._generate_node({"context": "Net 30 days.", "question": "账期？",
+    out = graph._generate_node({"context": "Net 30 days.", "question": "Payment terms?",
                                 "temperature": 0})
     assert out == {"generation": "Net 30."}
     assert seen["temperature"] == 0
@@ -143,7 +143,7 @@ def test_generate_node_uses_sql_gate_prompt_when_diagnostics_exist(monkeypatch):
 
     out = graph._generate_node({
         "context": "[source 1 contract_id=2026002]\n30 days notice.",
-        "question": "哪些合同提到30 days？",
+        "question": "Which contracts mention 30 days?",
         "temperature": 0,
         "retrieval_diagnostics": {
             "filters": {"identifier": "2026002"},
@@ -183,7 +183,7 @@ def _fake_chat_by_prompt():
     class _Chat:
         def invoke(self, prompt):
             text = prompt if isinstance(prompt, str) else str(prompt)
-            return _Out("true" if "足够" in text else "Net 30.")
+            return _Out("true" if "sufficient" in text else "Net 30.")
     return _Chat()
 
 
@@ -202,8 +202,8 @@ def test_agent_answer_with_sources_clause(monkeypatch):
                         lambda self, model, *, temperature=None: _fake_chat_by_prompt())
     graph._compiled_agent.cache_clear()
 
-    res = graph.agent_answer_with_sources("付款账期？", contract_id="2026004")
-    assert res.question == "付款账期？"
+    res = graph.agent_answer_with_sources("What are the payment terms?", contract_id="2026004")
+    assert res.question == "What are the payment terms?"
     assert res.question_class == "clause"
     assert res.answer == "Net 30."
     assert res.contexts == ["Net 30 days."]
@@ -225,7 +225,7 @@ def test_agent_answer_with_sources_comparison_clause_path_preserves_sources(monk
                         lambda self, model, *, temperature=None: _fake_chat_by_prompt())
     graph._compiled_agent.cache_clear()
 
-    res = graph.agent_answer_with_sources("哪些合同提到30 days？")
+    res = graph.agent_answer_with_sources("Which contracts mention 30 days?")
 
     assert res.question_class == "comparison"
     assert res.contexts == ["30 days notice."]
@@ -243,4 +243,4 @@ def test_agent_invoke_returns_answer_string(monkeypatch):
                         lambda self, model, *, temperature=None: _fake_chat_by_prompt())
     graph._compiled_agent.cache_clear()
 
-    assert graph.ContractRAGAgent().invoke("付款账期？") == "Net 30."
+    assert graph.ContractRAGAgent().invoke("What are the payment terms?") == "Net 30."

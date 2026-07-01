@@ -74,7 +74,7 @@ def test_answer_with_sources_clause_path(monkeypatch):
     monkeypatch.setattr(graph.LLM, "get_custom_chat_object",
                         lambda self, model, temperature=None: _FakeChat())
 
-    res = graph.answer_with_sources("付款账期？", contract_id="2026004")
+    res = graph.answer_with_sources("What are the payment terms?", contract_id="2026004")
     assert res.question_class == "clause"
     assert res.answer == "Net 30."
     assert res.contexts == ["Net 30 days."]
@@ -83,11 +83,11 @@ def test_answer_with_sources_clause_path(monkeypatch):
 
 def test_answer_with_sources_entity_path_has_no_contexts(monkeypatch):
     monkeypatch.setattr(graph, "classify_query", lambda q: "entity")
-    monkeypatch.setattr(graph, "entity_lookup", lambda q: "买方是 China Jushi USA。")
+    monkeypatch.setattr(graph, "entity_lookup", lambda q: "The buyer is China Jushi USA.")
     monkeypatch.setattr(graph.db, "list_contracts",
                         lambda: [{"contract_id": "2026004"}])
 
-    res = graph.answer_with_sources("谁是买方？")
+    res = graph.answer_with_sources("Who is the buyer?")
     assert res.question_class == "entity"
     assert res.contexts == []
     assert res.sources == [{"contract_id": "2026004"}]

@@ -1,3 +1,6 @@
+# Personal interview-prep notes (not for the repo)
+INTERVIEW_PREP.md
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -56,9 +59,14 @@ _archive/
 # Local tooling + personal notes (keep local, don't publish)
 .claude/
 思路过程.md
+docs/
+memory/
 
 # Generated curation output from scripts/feedback_to_gold.py (may hold user data)
 evals/feedback_candidates.jsonl
+
+# Generated eval reports and runner caches
+evals/reports/*.json
 
 # Secrets — NEVER commit (API keys, service-account JSON, ADC creds)
 .env
@@ -67,3 +75,5 @@ evals/feedback_candidates.jsonl
 *-service-account*.json
 round-dispatch-*.json
 application_default_credentials.json
+
+CLAUDE.md

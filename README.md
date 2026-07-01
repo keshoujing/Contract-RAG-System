@@ -6,7 +6,7 @@ vector store, or both, and returns the answer with **clause-level citations
 highlighted on the source PDF**. A question doesn't need to be in the same language as the
 contracts (cross-lingual retrieval, evaluated below). `./run.sh` brings up the full
 stack, optionally loading a demo dataset of 100 public sample contracts (CUAD) so you
-can query it right away.
+can test it right away.
 
 ---
 

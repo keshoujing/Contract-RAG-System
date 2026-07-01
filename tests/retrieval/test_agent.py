@@ -4,6 +4,8 @@ The live agent (Gemini tool-calling loop) is an integration entry point, not in
 the unit gate. Here we test the deterministic glue: parsing the model's final
 JSON and assembling/back-filling evidence.
 """
+from types import SimpleNamespace
+
 from contract_rag.retrieval import agent, grounding
 
 
@@ -29,9 +31,20 @@ def test_parse_final_garbage_returns_empty():
 
 def test_parse_final_repairs_stray_token():
     # Gemini-3 occasionally injects a stray token into otherwise-valid JSON
-    # (observed: a bare 「洞察」 between the array and the closing brace).
+    # (observed: a bare word between the array and the closing brace).
     raw = ('{"answer": "A", "evidence": '
-           '[{"kind":"record","contract_id":"c","fields":{}}]洞察}')
+           '[{"kind":"record","contract_id":"c","fields":{}}]insight}')
+    parsed = agent._parse_final(raw)
+    assert parsed["answer"] == "A"
+    assert parsed["evidence"][0]["contract_id"] == "c"
+
+
+def test_parse_final_recovers_when_stray_token_replaces_closing_brace():
+    # Gemini-3 sometimes emits a stray token *in place of* the final brace, leaving
+    # the object unclosed (observed on record-heavy answers). The parser must
+    # re-balance and recover the (otherwise valid) answer instead of abstaining.
+    raw = ('{"answer": "A", "evidence": '
+           '[{"kind":"record","contract_id":"c","fields":{"Amount":1}}]X')
     parsed = agent._parse_final(raw)
     assert parsed["answer"] == "A"
     assert parsed["evidence"][0]["contract_id"] == "c"
@@ -42,36 +55,36 @@ def test_assemble_backfills_clause_and_projects_record():
     # Record value is re-projected from the real ledger row: the LLM's bogus
     # 99.0 must not survive; the ledger's 12345.0 wins.
     parsed = {
-        "answer": "结论。",
+        "answer": "Conclusion.",
         "evidence": [
-            {"kind": "clause", "contract_id": "c1", "section": "付款",
-             "snippet": "逾期按万分之五"},
-            {"kind": "record", "contract_id": "c2", "fields": {"金额": 99.0}},
+            {"kind": "clause", "contract_id": "c1", "section": "Payment",
+             "snippet": "late payment accrues 0.05% per day"},
+            {"kind": "record", "contract_id": "c2", "fields": {"Amount": 99.0}},
         ],
     }
-    chunks = [{"contract_id": "c1", "page": 2, "section": "付款",
-               "snippet": "审计费用分两期支付，逾期按万分之五。",
+    chunks = [{"contract_id": "c1", "page": 2, "section": "Payment",
+               "snippet": "Audit fees are paid in two installments; late payment accrues 0.05% per day.",
                "bbox": [1.0, 2.0, 3.0, 4.0]}]
-    rows = [{"contract_id": "c2", "counterparty": "乙方公司", "amount": 12345.0}]
+    rows = [{"contract_id": "c2", "counterparty": "Party B Co.", "amount": 12345.0}]
 
     res = agent._assemble("q", parsed, chunks, rows)
 
-    assert res.answer == "结论。"
+    assert res.answer == "Conclusion."
     assert res.evidence[0]["kind"] == "clause"
     assert res.evidence[0]["page"] == 2
     assert res.evidence[0]["bbox"] == [1.0, 2.0, 3.0, 4.0]
     rec = res.evidence[1]
     assert rec["kind"] == "record"
-    assert rec["title"] == "乙方公司"
-    assert rec["fields"]["金额"] == 12345.0
+    assert rec["title"] == "Party B Co."
+    assert rec["fields"]["Amount"] == 12345.0
 
 
 def test_assemble_abstains_when_all_evidence_ungrounded():
     # Snippet isn't in any retrieved chunk -> dropped -> nothing survives ->
     # the fabricated answer is replaced with the abstention message.
-    parsed = {"answer": "凭空捏造。", "evidence": [
-        {"kind": "clause", "contract_id": "c1", "snippet": "库里没有的片段"}]}
-    chunks = [{"contract_id": "c1", "snippet": "真实但不含该片段的内容"}]
+    parsed = {"answer": "Fabricated out of nowhere.", "evidence": [
+        {"kind": "clause", "contract_id": "c1", "snippet": "a snippet not in the store"}]}
+    chunks = [{"contract_id": "c1", "snippet": "real content that does not contain that snippet"}]
     res = agent._assemble("q", parsed, chunks, [])
     assert res.evidence == []
     assert res.answer == grounding.ABSTAIN_ANSWER
@@ -85,13 +98,13 @@ def test_assemble_drops_malformed_evidence():
 
 def test_history_messages_maps_roles():
     hist = [
-        {"role": "user", "content": "水处理合同是哪一份"},
-        {"role": "assistant", "content": "JSUS2026004。", "evidence": [{"kind": "clause"}]},
+        {"role": "user", "content": "which contract is the water-treatment one"},
+        {"role": "assistant", "content": "JSUS2026004.", "evidence": [{"kind": "clause"}]},
     ]
     msgs = agent._history_messages(hist)
     assert [type(m).__name__ for m in msgs] == ["HumanMessage", "AIMessage"]
-    assert msgs[0].content == "水处理合同是哪一份"
-    assert msgs[1].content == "JSUS2026004。"
+    assert msgs[0].content == "which contract is the water-treatment one"
+    assert msgs[1].content == "JSUS2026004."
 
 
 def test_history_messages_skips_blank_and_unknown_roles():
@@ -119,6 +132,23 @@ def test_history_messages_none_is_empty():
     assert agent._history_messages(None) == []
 
 
+def test_tool_names_extracts_in_call_order():
+    # Routing diagnostic: which tool(s) the model asked to call, in order, so a
+    # later eval can assert the agent routed an aggregation question to the ledger.
+    resp = SimpleNamespace(tool_calls=[
+        {"name": "query_ledger", "args": {}, "id": "1"},
+        {"name": "search_clauses", "args": {"query": "x"}, "id": "2"},
+    ])
+    assert agent._tool_names(resp) == ["query_ledger", "search_clauses"]
+
+
+def test_tool_names_empty_when_no_tool_calls():
+    # Final answer message carries no tool_calls; missing attr is also fine.
+    assert agent._tool_names(SimpleNamespace(tool_calls=None)) == []
+    assert agent._tool_names(SimpleNamespace(tool_calls=[])) == []
+    assert agent._tool_names(SimpleNamespace()) == []
+
+
 def test_system_prompt_documents_sort_and_limit():
     prompt = agent._SYSTEM_PROMPT
     assert "sort_by" in prompt
@@ -127,8 +157,8 @@ def test_system_prompt_documents_sort_and_limit():
 
 def test_system_prompt_treats_ledger_counterparty_as_authoritative():
     prompt = agent._SYSTEM_PROMPT
-    assert "合同对方/供应商/合同主体" in prompt
+    assert "counterparty / supplier / principal" in prompt
     assert "query_ledger" in prompt
     assert "counterparty" in prompt
-    assert "比价对象" in prompt
-    assert "不得当作该合同的供应商" in prompt
+    assert "comparison/mentioned parties" in prompt
+    assert "must not be treated as that contract's supplier" in prompt

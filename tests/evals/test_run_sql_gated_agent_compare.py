@@ -19,7 +19,7 @@ def _res(question, *, qclass="clause", answer="Net 30 days.", contexts=None, sou
 def test_score_case_tracks_expected_sources_and_precision(monkeypatch):
     case = {
         "id": "q1",
-        "question": "哪些合同提到30 days？",
+        "question": "Which contracts mention 30 days?",
         "ground_truth": "2026004 mentions Net 30 days.",
         "expected_contract_ids": ["2026004"],
     }
@@ -63,7 +63,7 @@ def test_main_writes_report(monkeypatch, tmp_path):
     dataset = tmp_path / "sql_agent.jsonl"
     dataset.write_text(json.dumps({
         "id": "q1",
-        "question": "ChemAqua 付款条款是什么？",
+        "question": "What are ChemAqua's payment terms?",
         "ground_truth": "Net 30 days.",
         "expected_contract_ids": ["2026004"],
     }) + "\n", encoding="utf-8")

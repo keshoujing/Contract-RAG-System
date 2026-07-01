@@ -1,15 +1,15 @@
-"""File No. rule formatting + File Name composition (decision 15)."""
+"""File No. rule formatting + File Name composition."""
 from __future__ import annotations
 
+from contract_rag.registry import file_no
 from contract_rag.storage import db
-from contract_rag.sync import file_no
 
 
-# --- File Name composition (fixed order: 存档编号-合同号-合同内容) ------------ #
+# --- File Name composition (fixed order: File No.-Contract No.-Request Description) --- #
 
 def test_compose_file_name_order():
-    assert file_no.compose_file_name("F-1", "JSEGRCXS20260003", "埃及纸护角纸筒合同") == \
-        "F-1-JSEGRCXS20260003-埃及纸护角纸筒合同"
+    assert file_no.compose_file_name("F-1", "JSEGRCXS20260003", "Egypt paper edge-protector contract") == \
+        "F-1-JSEGRCXS20260003-Egypt paper edge-protector contract"
 
 
 def test_compose_file_name_omits_blank_description():

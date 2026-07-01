@@ -16,12 +16,12 @@ class _FakeObj:
 
 
 def test_object_to_row_serializes_props_and_extracts_named_vector():
-    o = _FakeObj("u1", {"text": "中文 clause", "contract_id": "C1", "page_start": 3},
+    o = _FakeObj("u1", {"text": "clause text", "contract_id": "C1", "page_start": 3},
                  {"default": [0.1, 0.2, 0.3]})
     row = snapshot._object_to_row(o)
     assert row["uuid"] == "u1"
     assert row["vector"] == [0.1, 0.2, 0.3]
-    assert json.loads(row["properties"]) == {"text": "中文 clause", "contract_id": "C1", "page_start": 3}
+    assert json.loads(row["properties"]) == {"text": "clause text", "contract_id": "C1", "page_start": 3}
 
 
 def test_object_to_row_handles_plain_list_vector():
@@ -30,9 +30,9 @@ def test_object_to_row_handles_plain_list_vector():
 
 
 def test_row_to_insert_roundtrips_object_to_row():
-    o = _FakeObj("u1", {"text": "中文", "bbox": [0.1, 0.2, 0.3, 0.4], "oversized": False},
+    o = _FakeObj("u1", {"text": "text", "bbox": [0.1, 0.2, 0.3, 0.4], "oversized": False},
                  {"default": [0.5, 0.6]})
     payload = snapshot._row_to_insert(snapshot._object_to_row(o))
     assert payload["uuid"] == "u1"
-    assert payload["properties"] == {"text": "中文", "bbox": [0.1, 0.2, 0.3, 0.4], "oversized": False}
+    assert payload["properties"] == {"text": "text", "bbox": [0.1, 0.2, 0.3, 0.4], "oversized": False}
     assert payload["vector"] == [0.5, 0.6]

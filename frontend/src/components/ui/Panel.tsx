@@ -36,7 +36,7 @@ export function ErrorState({ text, onRetry, retrying = false }: { text: string; 
     <div className="empty-state error-state">
       <div className="empty-icon error-icon"><CircleX size={22} /></div>
       <p>{text}</p>
-      <Button onClick={onRetry} loading={retrying}>重试</Button>
+      <Button onClick={onRetry} loading={retrying}>Retry</Button>
     </div>
   );
 }

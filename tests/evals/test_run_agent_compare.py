@@ -11,7 +11,7 @@ def _setup(monkeypatch, tmp_path):
     monkeypatch.setattr(rac, "_CACHE", tmp_path / "_agent_compare_cache.json")
     monkeypatch.setattr(rac, "_preflight", lambda: None)
     monkeypatch.setattr(rac, "load_dataset",
-                        lambda _p: [GoldCase("付款账期？", "Net 30 days.", "2026004")])
+                        lambda _p: [GoldCase("What are the payment terms?", "Net 30 days.", "2026004")])
     # deterministic embed: identical text -> sim 1.0
     monkeypatch.setattr(rac, "_embed_fn", lambda: (lambda t: [1.0, 0.0]))
 

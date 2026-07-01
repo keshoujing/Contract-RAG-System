@@ -75,7 +75,7 @@ export function QuestionAnswerPage() {
       void conversations.refetch();
       setTurns((current) => replacePendingTurn(current, trimmed, { question: trimmed, status: "done", response }));
     } catch {
-      setError("问答服务暂时不可用，请稍后重试。");
+      setError("The Q&A service is temporarily unavailable; please try again later.");
       setTurns((current) => replacePendingTurn(current, trimmed, { question: trimmed, status: "error" }));
     }
   }
@@ -117,16 +117,16 @@ export function QuestionAnswerPage() {
   return (
     <>
       <PageHeader
-        title="合同问答"
-        subtitle="基于全部合同的检索增强问答 · 回答附可追溯来源"
+        title="Contract Q&A"
+        subtitle="Retrieval-augmented Q&A over all contracts · answers come with traceable sources"
       />
       <div className="content-pad qa-page">
         <Card className="qa-history">
           <div className="qa-history-header">
-            <strong>历史聊天</strong>
+            <strong>Chat history</strong>
             <Button variant="primary" icon={<Plus size={14} />} onClick={() => void startNewConversation()}>New conversation</Button>
           </div>
-          <div className="qa-history-list" aria-label="历史聊天列表">
+          <div className="qa-history-list" aria-label="Chat history list">
             {(conversations.data ?? []).length > 0 ? (conversations.data ?? []).map((item) => (
               <div className="qa-history-item-wrap" key={item.conversation_id}>
                 <button
@@ -134,26 +134,26 @@ export function QuestionAnswerPage() {
                   onClick={() => activateConversation(item.conversation_id)}
                 >
                   <span>{item.title}</span>
-                  <small>{item.message_count} 条消息</small>
+                  <small>{item.message_count} messages</small>
                 </button>
                 <button
                   className="qa-history-delete"
-                  aria-label={`删除 ${item.title}`}
+                  aria-label={`Delete ${item.title}`}
                   onClick={() => setDeleteTarget({ id: item.conversation_id, title: item.title })}
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
             )) : (
-              <p className="qa-history-empty">暂无历史会话</p>
+              <p className="qa-history-empty">No past conversations</p>
             )}
           </div>
         </Card>
         <Card className="qa-workspace">
           <div className="qa-toolbar">
             <div className="qa-scope-field">
-              <span>范围</span>
-              <label className="sr-only" htmlFor="qa-scope-type">范围类型</label>
+              <span>Scope</span>
+              <label className="sr-only" htmlFor="qa-scope-type">Scope type</label>
               <select
                 id="qa-scope-type"
                 value={scopeType}
@@ -161,20 +161,20 @@ export function QuestionAnswerPage() {
                   setScopeType(event.target.value as ScopeType);
                   if (event.target.value === "all") setScopeValue("");
                 }}
-                aria-label="范围类型"
+                aria-label="Scope type"
               >
-                <option value="all">全部</option>
-                <option value="contract">合同编号</option>
-                <option value="supplier">供应商</option>
+                <option value="all">All</option>
+                <option value="contract">Contract No.</option>
+                <option value="supplier">Supplier</option>
               </select>
-              <label className="sr-only" htmlFor="qa-scope-value">范围值</label>
+              <label className="sr-only" htmlFor="qa-scope-value">Scope value</label>
               <input
                 id="qa-scope-value"
-                aria-label="范围值"
+                aria-label="Scope value"
                 value={scopeValue}
                 onChange={(event) => setScopeValue(event.target.value)}
                 disabled={scopeType === "all"}
-                placeholder={scopeType === "supplier" ? "输入供应商名称" : scopeType === "contract" ? "输入合同编号" : "检索全部合同"}
+                placeholder={scopeType === "supplier" ? "Enter a supplier name" : scopeType === "contract" ? "Enter a contract number" : "Search all contracts"}
               />
             </div>
           </div>
@@ -189,8 +189,8 @@ export function QuestionAnswerPage() {
             ) : (
               <div className="qa-empty">
                 <Search size={28} />
-                <h2>向合同库提问</h2>
-                <p>可以问付款期限、违约责任、金额范围、供应商对比，回答会附上可追溯来源。</p>
+                <h2>Ask the contract corpus</h2>
+                <p>Ask about payment terms, liability, amount ranges, or supplier comparisons — answers come with traceable sources.</p>
               </div>
             )}
           </div>
@@ -199,20 +199,20 @@ export function QuestionAnswerPage() {
             {error ? <div className="qa-error" role="alert">{error}</div> : null}
             {conversationLocked ? (
               <div className="qa-locked-notice" role="alert">
-                <span>本次对话已达长度上限。为保证回答能完整参考上下文，请开启新对话继续提问。</span>
-                <Button variant="primary" icon={<Plus size={14} />} onClick={() => void startNewConversation()}>开启新对话</Button>
+                <span>This conversation has reached its length limit. To keep answers fully context-aware, start a new conversation to continue.</span>
+                <Button variant="primary" icon={<Plus size={14} />} onClick={() => void startNewConversation()}>Start new conversation</Button>
               </div>
             ) : null}
             <textarea
-              aria-label="输入合同问题"
+              aria-label="Enter a contract question"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
               onKeyDown={handleComposerKeyDown}
-              placeholder={conversationLocked ? "本次对话已达长度上限，请开启新对话" : "例如：付款期限超过 60 天的合同，逾期付款怎么约定违约责任？"}
+              placeholder={conversationLocked ? "This conversation has reached its length limit; start a new one" : "e.g. For contracts with payment terms over 60 days, how is liability for late payment specified?"}
               rows={3}
               disabled={conversationLocked}
             />
-            <Button variant="primary" type="submit" loading={askQuestion.isPending} disabled={conversationLocked} icon={<Send size={15} />}>发送</Button>
+            <Button variant="primary" type="submit" loading={askQuestion.isPending} disabled={conversationLocked} icon={<Send size={15} />}>Send</Button>
           </form>
         </Card>
       </div>
@@ -221,11 +221,11 @@ export function QuestionAnswerPage() {
         <div className="modal-layer">
           <div className="modal-scrim" onClick={() => setDeleteTarget(null)} />
           <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="qa-delete-title">
-            <h2 id="qa-delete-title">删除对话？</h2>
-            <p>将删除「{deleteTarget.title}」及其中所有问答记录，不可恢复。</p>
+            <h2 id="qa-delete-title">Delete conversation?</h2>
+            <p>This will delete "{deleteTarget.title}" and all of its Q&A records. This cannot be undone.</p>
             <footer>
-              <Button onClick={() => setDeleteTarget(null)}>取消</Button>
-              <Button variant="danger" loading={deleteConversation.isPending} onClick={() => void confirmDeleteConversation()}>删除</Button>
+              <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button variant="danger" loading={deleteConversation.isPending} onClick={() => void confirmDeleteConversation()}>Delete</Button>
             </footer>
           </section>
         </div>
@@ -255,9 +255,9 @@ function ThinkingCard() {
     <article className="qa-answer-card qa-thinking-card" role="status">
       <div className="qa-thinking-title">
         <span className="qa-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
-        <strong>正在检索合同库</strong>
+        <strong>Searching the contract corpus</strong>
       </div>
-      <p>分析台账记录和原文片段，生成可核实回答…</p>
+      <p>Analyzing ledger records and source text to produce a verifiable answer…</p>
     </article>
   );
 }
@@ -265,7 +265,7 @@ function ThinkingCard() {
 function ErrorAnswerCard() {
   return (
     <article className="qa-answer-card qa-answer-error" role="alert">
-      问答服务暂时不可用，请稍后重试。
+      The Q&A service is temporarily unavailable; please try again later.
     </article>
   );
 }
@@ -279,7 +279,7 @@ function AnswerCard({ response, feedback, onVerify, onFeedback }: { response: Qu
       <div className="qa-answer-body">{response.answer}</div>
       {records.length > 0 ? <RecordEvidenceTable records={records} /> : null}
       {clauses.length > 0 ? <ClauseEvidenceList clauses={clauses} onVerify={onVerify} /> : null}
-      {records.length === 0 && clauses.length === 0 ? <p className="qa-muted">暂无可追溯来源</p> : null}
+      {records.length === 0 && clauses.length === 0 ? <p className="qa-muted">No traceable sources</p> : null}
       {messageId ? <FeedbackButtons value={feedback} onVote={(score) => onFeedback(messageId, score)} /> : null}
     </article>
   );
@@ -287,12 +287,12 @@ function AnswerCard({ response, feedback, onVerify, onFeedback }: { response: Qu
 
 export function FeedbackButtons({ value, onVote }: { value?: FeedbackScore | null; onVote: (score: FeedbackScore) => void }) {
   return (
-    <div className="qa-feedback" role="group" aria-label="回答反馈">
-      <span className="qa-feedback-label">这条回答有帮助吗？</span>
+    <div className="qa-feedback" role="group" aria-label="Answer feedback">
+      <span className="qa-feedback-label">Was this answer helpful?</span>
       <button
         type="button"
         className={`qa-feedback-btn ${value === "up" ? "active" : ""}`}
-        aria-label="有帮助"
+        aria-label="Helpful"
         aria-pressed={value === "up"}
         onClick={() => onVote("up")}
       >
@@ -301,7 +301,7 @@ export function FeedbackButtons({ value, onVote }: { value?: FeedbackScore | nul
       <button
         type="button"
         className={`qa-feedback-btn ${value === "down" ? "active" : ""}`}
-        aria-label="没帮助"
+        aria-label="Not helpful"
         aria-pressed={value === "down"}
         onClick={() => onVote("down")}
       >
@@ -316,17 +316,17 @@ function RecordEvidenceTable({ records }: { records: QueryRecordEvidence[] }) {
   return (
     <section className="qa-evidence-section">
       <div className="qa-section-title">
-        <strong>匹配合同 · 台账记录</strong>
-        <span>{records.length} 条</span>
+        <strong>Matched contracts · ledger records</strong>
+        <span>{records.length}</span>
       </div>
       <div className="qa-table-wrap">
-        <table className="data-table qa-record-table" aria-label="匹配合同证据">
+        <table className="data-table qa-record-table" aria-label="Matched contract evidence">
           <thead>
             <tr>
-              <th>合同编号</th>
-              <th>名称</th>
+              <th>Contract No.</th>
+              <th>Name</th>
               {columns.map((column) => <th key={column}>{column}</th>)}
-              <th>操作</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -335,7 +335,7 @@ function RecordEvidenceTable({ records }: { records: QueryRecordEvidence[] }) {
                 <td className="mono">{record.contract_id}</td>
                 <td>{record.title || "-"}</td>
                 {columns.map((column) => <td key={column}>{formatEvidenceValue(record.fields[column])}</td>)}
-                <td><Link className="qa-link" to={`/contracts/${record.contract_id}`}>查看台账</Link></td>
+                <td><Link className="qa-link" to={`/contracts/${record.contract_id}`}>View ledger</Link></td>
               </tr>
             ))}
           </tbody>
@@ -349,15 +349,15 @@ function ClauseEvidenceList({ clauses, onVerify }: { clauses: QueryClauseEvidenc
   return (
     <section className="qa-evidence-section">
       <div className="qa-section-title">
-        <strong>条款原文</strong>
-        <span>{clauses.length} 处</span>
+        <strong>Clause text</strong>
+        <span>{clauses.length}</span>
       </div>
       <div className="qa-source-list">
         {clauses.map((source, index) => (
           <article className="qa-source-card" key={`${source.contract_id}-${source.page ?? "na"}-${index}`}>
-            <div className="qa-source-meta">{source.contract_id} · 第 {source.page ?? "-"} 页{source.section ? ` · ${source.section}` : ""}</div>
+            <div className="qa-source-meta">{source.contract_id} · p. {source.page ?? "-"}{source.section ? ` · ${source.section}` : ""}</div>
             <p>{source.snippet}</p>
-            <Button icon={<Search size={14} />} onClick={() => onVerify(source)} disabled={!source.page}>核实原文</Button>
+            <Button icon={<Search size={14} />} onClick={() => onVerify(source)} disabled={!source.page}>Verify source</Button>
           </article>
         ))}
       </div>
@@ -378,27 +378,27 @@ function VerifyModal({ state, onClose }: { state: VerifyState; onClose: () => vo
   return (
     <div className="modal-layer">
       <div className="modal-scrim" onClick={onClose} />
-      <section className="qa-verify-modal" role="dialog" aria-modal="true" aria-label="原文核实">
+      <section className="qa-verify-modal" role="dialog" aria-modal="true" aria-label="Source verification">
         <header>
           <div>
-            <h2>原文核实</h2>
-            <p>{state.source.contract_id} · 第 {state.page} 页{state.source.section ? ` · ${state.source.section}` : ""}</p>
+            <h2>Source verification</h2>
+            <p>{state.source.contract_id} · p. {state.page}{state.source.section ? ` · ${state.source.section}` : ""}</p>
           </div>
           <div className="qa-verify-actions">
-            <button className="lightbox-tool" onClick={() => setRotation((current) => (current + 270) % 360)} aria-label="左转 90 度"><RotateCcw size={16} /></button>
-            <button className="lightbox-tool" onClick={() => setRotation((current) => (current + 90) % 360)} aria-label="右转 90 度"><RotateCw size={16} /></button>
-            <button className="lightbox-close" onClick={onClose} aria-label="关闭原文核实"><X size={18} /></button>
+            <button className="lightbox-tool" onClick={() => setRotation((current) => (current + 270) % 360)} aria-label="Rotate left 90°"><RotateCcw size={16} /></button>
+            <button className="lightbox-tool" onClick={() => setRotation((current) => (current + 90) % 360)} aria-label="Rotate right 90°"><RotateCw size={16} /></button>
+            <button className="lightbox-close" onClick={onClose} aria-label="Close source verification"><X size={18} /></button>
           </div>
         </header>
         <div className="qa-verify-stage qa-verify-stage-single-page" data-testid="qa-verify-stage">
           <div className="qa-page-image-wrap" data-testid="qa-page-image-wrap" style={{ transform: `rotate(${rotation}deg)` }}>
-            <img src={pageUrl} alt={`${state.source.contract_id} 第 ${state.page} 页原文`} />
+            <img src={pageUrl} alt={`${state.source.contract_id} page ${state.page} source`} />
             {bbox ? <div data-testid="source-highlight" className="qa-source-highlight" style={bboxToStyle(bbox)} /> : null}
           </div>
         </div>
         <footer>
           <p>{state.source.snippet}</p>
-          <a className="button button-secondary" href={pageUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} />新窗口打开</a>
+          <a className="button button-secondary" href={pageUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} />Open in new window</a>
         </footer>
       </section>
     </div>

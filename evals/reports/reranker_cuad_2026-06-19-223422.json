@@ -1,9 +1,0 @@
-{
-  "n_cases": 185,
-  "cov5_off": 0.8023,
-  "cov5_on": 0.8059,
-  "cov20_ceiling": 0.8076,
-  "delta_on_minus_off": 0.0035,
-  "headroom_cases": 13,
-  "reranker_closed_headroom": 9
-}

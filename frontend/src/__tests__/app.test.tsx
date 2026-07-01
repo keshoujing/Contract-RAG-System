@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, vi } from "vitest";
 import App from "../App";
 import { getContracts, getProcessingRows } from "../api/client";
-import { configState, conflicts, contracts, processingRows } from "../api/mockData";
+import { configState, contracts, processingRows } from "../api/mockData";
 
 afterEach(() => {
   cleanup();
@@ -60,25 +60,24 @@ function getLedgerDataRows() {
 }
 
 describe("Contract-RAG frontend", () => {
-  it("renders the fixed navigation and keeps ingest and Excel sync statuses separate", async () => {
+  it("renders the fixed navigation and processing status table", async () => {
     render(<App />);
 
-    expect(screen.getByText("合同登记系统")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "台账" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "入库与同步" })).toBeInTheDocument();
+    expect(screen.getByText("Contract Registry")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ledger" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Processing" })).toBeInTheDocument();
 
-    const table = await screen.findByRole("table", { name: "入库与同步状态表" });
-    expect(within(table).getByRole("columnheader", { name: "入库状态" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "Excel 同步状态" })).toBeInTheDocument();
-    expect(within(table).getByText("进行中 · 嵌入中")).toBeInTheDocument();
-    expect(within(table).getByText("待确认冲突")).toBeInTheDocument();
+    const table = await screen.findByRole("table", { name: "Processing status table" });
+    expect(within(table).getByRole("columnheader", { name: "Ingest status" })).toBeInTheDocument();
+    expect(within(table).getByText("In progress · Embedding")).toBeInTheDocument();
+    expect(within(table).getAllByText("Done").length).toBeGreaterThan(0);
   });
 
   it("keeps the sidebar runtime status aligned to the config API", async () => {
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith("/config")) {
-        return Promise.resolve(new Response(JSON.stringify({ ...configState, ragEnabled: true, excelEnabled: false }), { headers: { "Content-Type": "application/json" }, status: 200 }));
+        return Promise.resolve(new Response(JSON.stringify({ ...configState, ragEnabled: true }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       if (url.endsWith("/processing")) {
         return Promise.resolve(new Response(JSON.stringify(processingRows), { headers: { "Content-Type": "application/json" }, status: 200 }));
@@ -88,134 +87,29 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/processing" />);
 
-    expect(await screen.findByText("RAG 开启 · 仅数据库")).toBeInTheDocument();
+    expect(await screen.findByText("RAG on")).toBeInTheDocument();
   });
 
   it("filters processing rows from the overview metric cards", async () => {
     const user = userEvent.setup();
     render(<App initialPath="/processing" />);
 
-    await screen.findByRole("table", { name: "入库与同步状态表" });
+    await screen.findByRole("table", { name: "Processing status table" });
     expect(screen.getByText("Jushi Egypt For Fiberglass Industry S.A.E")).toBeInTheDocument();
-    expect(screen.getByText("水处理框架供应商")).toBeInTheDocument();
+    expect(screen.getByText("Water-treatment framework supplier")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "待确认冲突 1" }));
+    await user.click(screen.getByRole("button", { name: "Processing 1" }));
 
-    expect(screen.getByText("筛选：待确认冲突")).toBeInTheDocument();
-    expect(screen.getByText("Jushi Egypt For Fiberglass Industry S.A.E")).toBeInTheDocument();
-    expect(screen.queryByText("水处理框架供应商")).not.toBeInTheDocument();
+    expect(screen.getByText("Filter: Processing")).toBeInTheDocument();
+    expect(screen.getByText("Stainless-steel pipe supplier")).toBeInTheDocument();
+    expect(screen.queryByText("Water-treatment framework supplier")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "清除状态筛选" }));
-    expect(screen.getByText("水处理框架供应商")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear status filter" }));
+    expect(screen.getByText("Water-treatment framework supplier")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "重试中 1" }));
-    expect(screen.getByText("水处理框架供应商")).toBeInTheDocument();
-    expect(screen.queryByText("Jushi Egypt For Fiberglass Industry S.A.E")).not.toBeInTheDocument();
-  });
-
-  it("lets the conflict page choose a manual resolution value", async () => {
-    const user = userEvent.setup();
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    const manualChoices = await screen.findAllByLabelText("手动输入");
-    await user.click(manualChoices[0]);
-    const manualInput = screen.getByPlaceholderText("输入要保留的值");
-    expect(manualInput).toHaveFocus();
-    await user.type(manualInput, "巨石埃及玻璃纤维工业");
-
-    expect(screen.getByText("本次将采用：")).toBeInTheDocument();
-    expect(screen.getByText(/counterparty=手动/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue("巨石埃及玻璃纤维工业")).toBeInTheDocument();
-  });
-
-  it("blocks conflict merge when a manual resolution is empty", async () => {
-    const user = userEvent.setup();
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    const manualChoices = await screen.findAllByLabelText("手动输入");
-    await user.click(manualChoices[0]);
-    await user.click(screen.getByRole("button", { name: "确认合并" }));
-
-    expect(screen.getByText("还有 1 个字段未选择")).toBeInTheDocument();
-    expect(screen.queryByText("已合并 JSEGRCXS20260003，生成新基线")).not.toBeInTheDocument();
-  });
-
-  it("returns to processing from the conflict footer cancel action", async () => {
-    const user = userEvent.setup();
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    await user.click(await screen.findByRole("link", { name: "取消" }));
-
-    expect(screen.getByRole("heading", { name: "入库与同步" })).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "入库与同步状态表" })).toBeInTheDocument();
-  });
-
-  it("returns to processing from the conflict page with Escape", async () => {
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    await screen.findByText("冲突字段（3）");
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(await screen.findByRole("heading", { name: "入库与同步" })).toBeInTheDocument();
-    expect(await screen.findByRole("table", { name: "入库与同步状态表" })).toBeInTheDocument();
-  });
-
-  it("expands and collapses readonly consistent fields on the conflict page", async () => {
-    const user = userEvent.setup();
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    expect(await screen.findByText("冲突字段（3）")).toBeInTheDocument();
-    expect(screen.queryByText("无冲突字段（3）")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "展开全部字段" }));
-
-    expect(screen.getByText("无冲突字段（3）")).toBeInTheDocument();
-    expect(screen.getByText("project_name")).toBeInTheDocument();
-    expect(screen.getAllByText("一致")).toHaveLength(3);
-    expect(screen.getAllByText("UD 玻纤增强复合材料采购")).toHaveLength(2);
-
-    await user.click(screen.getByRole("button", { name: "收起" }));
-    expect(screen.queryByText("无冲突字段（3）")).not.toBeInTheDocument();
-  });
-
-  it("shows a resolved empty state when a contract has no conflicts left", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((input: RequestInfo | URL) => {
-        if (String(input).endsWith("/conflict")) {
-          return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
-        }
-        return Promise.reject(new Error("unexpected request"));
-      })
-    );
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    expect(await screen.findByText("该合同的冲突已被解决")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "返回" }).some((link) => link.getAttribute("href") === "/processing")).toBe(true);
-    expect(screen.queryByRole("button", { name: "确认合并" })).not.toBeInTheDocument();
-  });
-
-  it("shows a retryable conflict error state when the backend returns an error", async () => {
-    const user = userEvent.setup();
-    let attempts = 0;
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      if (String(input).endsWith("/conflict")) {
-        attempts += 1;
-        if (attempts === 1) {
-          return Promise.resolve(new Response(JSON.stringify({ error: "conflict service unavailable" }), { headers: { "Content-Type": "application/json" }, status: 500 }));
-        }
-        return Promise.resolve(new Response(JSON.stringify(conflicts), { headers: { "Content-Type": "application/json" }, status: 200 }));
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    expect(await screen.findByText(/加载失败/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "重试" }));
-
-    expect(await screen.findByText("冲突字段（3）")).toBeInTheDocument();
-    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/conflict")).length).toBeGreaterThan(1);
+    await user.click(screen.getByRole("button", { name: "Done 3" }));
+    expect(screen.getByText("Water-treatment framework supplier")).toBeInTheDocument();
+    expect(screen.queryByText("Stainless-steel pipe supplier")).not.toBeInTheDocument();
   });
 
   it("walks through the upload wizard from file selection to field confirmation", async () => {
@@ -223,21 +117,21 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "supply-contract.pdf", { type: "application/pdf" });
 
-    expect(screen.getByText("拖拽 PDF 到此处，或点击选择")).toBeInTheDocument();
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
+    expect(screen.getByText("Drag a PDF here, or click to choose")).toBeInTheDocument();
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
 
-    expect(await screen.findByText(/上传中/)).toBeInTheDocument();
-    expect((await screen.findAllByText("supply-contract.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
+    expect(await screen.findByText(/Uploading/)).toBeInTheDocument();
+    expect((await screen.findAllByText("supply-contract.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(screen.getByText("逐页标注：审批 / 合同 / 其他")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    expect(screen.getByText("Tag each page: Approval / Contract / Other")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
-    expect(screen.getByText("确认登记字段")).toBeInTheDocument();
-    expect(screen.getByText("登记字段")).toBeInTheDocument();
-    expect(screen.getByText("确认入账")).toBeInTheDocument();
+    expect(screen.getByText("Confirm registration fields")).toBeInTheDocument();
+    expect(screen.getByText("Registration fields")).toBeInTheDocument();
+    expect(screen.getByText("Confirm registration")).toBeInTheDocument();
   });
 
   it("requires every page tagged plus an approval and contract page before extracting", async () => {
@@ -245,17 +139,17 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "approval-required.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("approval-required.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("approval-required.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
 
-    const extractButton = screen.getByRole("button", { name: "下一步：抽取字段" });
+    const extractButton = screen.getByRole("button", { name: "Next: extract fields" });
     expect(extractButton).toBeDisabled();                                   // nothing tagged yet
 
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));        // brush defaults to 审批
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));        // brush defaults to approval
     expect(extractButton).toBeDisabled();                                   // other pages still untagged
 
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
     expect(extractButton).toBeEnabled();                                    // all tagged + approval + contract
   });
 
@@ -275,17 +169,17 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "api-contract.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("api-contract.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("api-contract.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
 
     const uploadCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/ingest/upload");
     expect(uploadCall?.[1]?.body).toBeInstanceOf(FormData);
     expect((uploadCall?.[1]?.body as FormData).get("file")).toBe(pdf);
 
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/ingest/task-42/page-tags", expect.objectContaining({ method: "POST" })));
     const pageTagsCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/ingest/task-42/page-tags");
@@ -334,19 +228,19 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "api-contract.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("api-contract.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("api-contract.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
     expect(await screen.findByDisplayValue("API2026001")).toBeInTheDocument();
     expect(screen.getByDisplayValue("API Counterparty LLC")).toBeInTheDocument();
-    await user.type(screen.getByLabelText("生效日"), "2026-06-01");
-    await user.type(screen.getByLabelText("到期日"), "2027-06-01");
-    await user.selectOptions(screen.getByLabelText("存档分类"), "china-buy");
-    await user.click(screen.getByRole("button", { name: "确认入账" }));
+    await user.type(screen.getByLabelText("Effective Date"), "2026-06-01");
+    await user.type(screen.getByLabelText("Expiration Date"), "2027-06-01");
+    await user.selectOptions(screen.getByLabelText("Archive category"), "china-buy");
+    await user.click(screen.getByRole("button", { name: "Confirm registration" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/ingest/task-42/confirm", expect.objectContaining({
       body: JSON.stringify({
@@ -357,7 +251,7 @@ describe("Contract-RAG frontend", () => {
       }),
       method: "POST"
     })));
-    expect(await screen.findByText("已入账 API2026001")).toBeInTheDocument();
+    expect(await screen.findByText("Registered API2026001")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "API2026001" })).toBeInTheDocument();
   });
 
@@ -399,21 +293,21 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "api-contract.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("api-contract.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
-    await user.type(await screen.findByLabelText("生效日"), "2026-06-01");
-    await user.type(screen.getByLabelText("到期日"), "2027-06-01");
-    await user.click(screen.getByRole("button", { name: "确认入账" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("api-contract.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
+    await user.type(await screen.findByLabelText("Effective Date"), "2026-06-01");
+    await user.type(screen.getByLabelText("Expiration Date"), "2027-06-01");
+    await user.click(screen.getByRole("button", { name: "Confirm registration" }));
 
-    const dialog = await screen.findByRole("dialog", { name: "覆盖已有合同？" });
-    expect(within(dialog).getByText("合同 API2026001 已存在，入账将覆盖原数据（含向量库与存档），是否继续？")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "确认登记字段" })).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Overwrite existing contract?" });
+    expect(within(dialog).getByText("Contract API2026001 already exists; registering will overwrite the existing data (including the vector store and archive). Continue?")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confirm registration fields" })).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "确认覆盖" }));
+    await user.click(within(dialog).getByRole("button", { name: "Confirm overwrite" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/ingest/task-42/confirm", expect.objectContaining({
       body: expect.stringContaining("\"overwrite\":true"),
@@ -445,17 +339,17 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "loading-fields.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("loading-fields.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("loading-fields.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
-    expect(await screen.findByRole("heading", { name: "确认登记字段" })).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: "正在抽取字段" })).toBeInTheDocument();
-    expect(screen.getAllByText("小模型结构化字段，生成登记表单中…").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "确认入账" })).toBeDisabled();
+    expect(await screen.findByRole("heading", { name: "Confirm registration fields" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Extracting fields" })).toBeInTheDocument();
+    expect(screen.getAllByText("Structuring fields with a small model and generating the registration form…").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Confirm registration" })).toBeDisabled();
 
     resolveStatus(new Response(JSON.stringify({ status: "done", stage: "awaiting_user_confirmation", fields: { contract_id: "API2026002" } }), { headers: { "Content-Type": "application/json" }, status: 200 }));
 
@@ -485,15 +379,15 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "missing-id.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("missing-id.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("missing-id.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
-    expect(await screen.findByText("未识别到合同编号，请手填")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "确认入账" })).toBeDisabled();
+    expect(await screen.findByText("Contract number not detected; enter it manually")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm registration" })).toBeDisabled();
   });
 
   it("focuses the first invalid upload field when confirmation validation fails", async () => {
@@ -501,19 +395,19 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "invalid-dates.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("invalid-dates.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
-    await user.type(screen.getByLabelText("生效日"), "2027-04-15");
-    await user.type(screen.getByLabelText("到期日"), "2026-04-14");
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("invalid-dates.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
+    await user.type(screen.getByLabelText("Effective Date"), "2027-04-15");
+    await user.type(screen.getByLabelText("Expiration Date"), "2026-04-14");
 
-    await user.click(screen.getByRole("button", { name: "确认入账" }));
+    await user.click(screen.getByRole("button", { name: "Confirm registration" }));
 
-    expect(screen.getByText("到期日不能早于生效日")).toBeInTheDocument();
-    expect(screen.getByLabelText("到期日")).toHaveFocus();
+    expect(screen.getByText("Expiration date cannot be earlier than the effective date")).toBeInTheDocument();
+    expect(screen.getByLabelText("Expiration Date")).toHaveFocus();
   });
 
   it("keeps the approval page step retryable when extraction fails", async () => {
@@ -535,17 +429,17 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "extract-failure.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("extract-failure.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("extract-failure.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
-    expect((await screen.findAllByText("抽取失败，请重试")).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "下一步：抽取字段" })).toBeEnabled();
-    expect(screen.getByText("逐页标注：审批 / 合同 / 其他")).toBeInTheDocument();
-    expect(screen.getAllByText("抽取失败，请重试").some((node) => node.closest(".toast")?.classList.contains("toast-error"))).toBe(true);
+    expect((await screen.findAllByText("Extraction failed, please retry")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Next: extract fields" })).toBeEnabled();
+    expect(screen.getByText("Tag each page: Approval / Contract / Other")).toBeInTheDocument();
+    expect(screen.getAllByText("Extraction failed, please retry").some((node) => node.closest(".toast")?.classList.contains("toast-error"))).toBe(true);
   });
 
   it("returns to upload when OCR quality is too low", async () => {
@@ -567,16 +461,16 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "blurred-scan.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("blurred-scan.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("blurred-scan.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
-    expect((await screen.findAllByText("识别质量过低，请重传更清晰的扫描件")).length).toBeGreaterThan(0);
-    expect(screen.getByText("拖拽 PDF 到此处，或点击选择")).toBeInTheDocument();
-    expect(screen.getAllByText("识别质量过低，请重传更清晰的扫描件").some((node) => node.closest(".toast")?.classList.contains("toast-error"))).toBe(true);
+    expect((await screen.findAllByText("Recognition quality too low; re-upload a clearer scan")).length).toBeGreaterThan(0);
+    expect(screen.getByText("Drag a PDF here, or click to choose")).toBeInTheDocument();
+    expect(screen.getAllByText("Recognition quality too low; re-upload a clearer scan").some((node) => node.closest(".toast")?.classList.contains("toast-error"))).toBe(true);
   });
 
   it("rejects non-PDF files in the upload wizard", async () => {
@@ -584,10 +478,10 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const image = new File(["not a contract"], "contract.png", { type: "image/png" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), image);
+    await user.upload(screen.getByLabelText("Choose PDF file"), image);
 
-    expect(screen.getByText("仅支持 PDF")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "下一步" })).toBeDisabled();
+    expect(screen.getByText("PDF only")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
   it("requires missing dates before confirming upload entry and then opens the contract detail", async () => {
@@ -595,97 +489,22 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "signed_2026005_OwensCorning.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("signed_2026005_OwensCorning.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "下一步" }));
-    await user.click(screen.getByRole("button", { name: /标注第 2 页/ }));
-    await user.click(screen.getByRole("button", { name: "其余设为合同" }));
-    await user.click(screen.getByRole("button", { name: "下一步：抽取字段" }));
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("signed_2026005_OwensCorning.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /Tag page 2/ }));
+    await user.click(screen.getByRole("button", { name: "Set rest as Contract" }));
+    await user.click(screen.getByRole("button", { name: "Next: extract fields" }));
 
-    expect(screen.getByRole("button", { name: "确认入账" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Confirm registration" })).toBeDisabled();
 
-    await user.type(screen.getByLabelText("生效日"), "2026-04-15");
-    await user.type(screen.getByLabelText("到期日"), "2027-04-14");
-    await user.click(screen.getByRole("button", { name: "确认入账" }));
+    await user.type(screen.getByLabelText("Effective Date"), "2026-04-15");
+    await user.type(screen.getByLabelText("Expiration Date"), "2027-04-14");
+    await user.click(screen.getByRole("button", { name: "Confirm registration" }));
 
-    expect(await screen.findByText("已入账 JSUS2026005")).toBeInTheDocument();
+    expect(await screen.findByText("Registered JSUS2026005")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "JSUS2026005" })).toBeInTheDocument();
     expect(screen.getAllByText("Owens Corning Composites").length).toBeGreaterThan(0);
-  });
-
-  it("requires confirmation before disabling Excel sync", async () => {
-    const user = userEvent.setup();
-    render(<App initialPath="/settings" />);
-
-    await user.click(await screen.findByRole("button", { name: "Excel 同步" }));
-
-    const dialog = screen.getByRole("dialog", { name: "关闭 Excel 同步？" });
-    expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText(/关闭后系统仅写入数据库/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "确认关闭" }));
-    expect(screen.getByRole("heading", { name: "Excel 同步 已关闭" })).toBeInTheDocument();
-  });
-
-  it("greys out the processing sync column and disables sync actions when Excel sync is off", async () => {
-    const user = userEvent.setup();
-    render(<App initialPath="/settings" />);
-
-    await user.click(await screen.findByRole("button", { name: "Excel 同步" }));
-    await user.click(screen.getByRole("button", { name: "确认关闭" }));
-    await user.click(screen.getByRole("link", { name: "入库与同步" }));
-
-    const table = await screen.findByRole("table", { name: "入库与同步状态表" });
-    expect(within(table).getAllByText("已禁用 ⊘")).toHaveLength(4);
-    expect(within(table).queryByRole("button", { name: "立即重试" })).not.toBeInTheDocument();
-    expect(within(table).queryByRole("link", { name: "解决冲突" })).not.toBeInTheDocument();
-    expect(within(table).getAllByText("完成").length).toBeGreaterThan(0);
-  });
-
-  it("honors an initially disabled Excel sync configuration from the API", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/config")) {
-        return Promise.resolve(new Response(JSON.stringify({ ...configState, excelEnabled: false }), { status: 200 }));
-      }
-      if (url.endsWith("/processing")) {
-        return Promise.resolve(new Response(JSON.stringify(processingRows), { status: 200 }));
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
-    render(<App initialPath="/settings" />);
-
-    expect(await screen.findByRole("heading", { name: "Excel 同步 已关闭" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("link", { name: "入库与同步" }));
-    const table = await screen.findByRole("table", { name: "入库与同步状态表" });
-    expect(within(table).getAllByText("已禁用 ⊘")).toHaveLength(4);
-  });
-
-  it("persists disabling Excel sync through the config API", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/config") && init?.method === "PATCH") {
-        return Promise.resolve(new Response(JSON.stringify({ ...configState, excelEnabled: false }), { status: 200 }));
-      }
-      if (url.endsWith("/config")) {
-        return Promise.resolve(new Response(JSON.stringify(configState), { status: 200 }));
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
-    render(<App initialPath="/settings" />);
-
-    await user.click(await screen.findByRole("button", { name: "Excel 同步" }));
-    await user.click(screen.getByRole("button", { name: "确认关闭" }));
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/config", expect.objectContaining({
-      body: JSON.stringify({ excelEnabled: false }),
-      method: "PATCH"
-    })));
-    expect(screen.getByRole("heading", { name: "Excel 同步 已关闭" })).toBeInTheDocument();
   });
 
   it("rolls back a settings toggle when saving config fails", async () => {
@@ -695,7 +514,7 @@ describe("Contract-RAG frontend", () => {
         return Promise.resolve(new Response(JSON.stringify({ error: "config locked" }), { status: 500 }));
       }
       if (url.endsWith("/config")) {
-        return Promise.resolve(new Response(JSON.stringify(configState), { status: 200 }));
+        return Promise.resolve(new Response(JSON.stringify({ ...configState, ragEnabled: true }), { status: 200 }));
       }
       return Promise.reject(new Error("unexpected request"));
     });
@@ -703,13 +522,13 @@ describe("Contract-RAG frontend", () => {
     const user = userEvent.setup();
     render(<App initialPath="/settings" />);
 
-    await user.click(await screen.findByRole("button", { name: "Excel 同步" }));
-    await user.click(screen.getByRole("button", { name: "确认关闭" }));
+    await user.click(await screen.findByRole("button", { name: "RAG module" }));
+    await user.click(screen.getByRole("button", { name: "Confirm disable" }));
 
-    const failureToast = await screen.findByText(/保存失败/);
+    const failureToast = await screen.findByText(/Failed to save/);
     expect(failureToast).toBeInTheDocument();
     expect(failureToast.closest(".toast")).toHaveClass("toast-error");
-    expect(screen.getByRole("heading", { name: "Excel 同步 开启中" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "RAG module On" })).toBeInTheDocument();
   });
 
   it("edits and saves file number rule prefixes from settings", async () => {
@@ -728,10 +547,10 @@ describe("Contract-RAG frontend", () => {
     const user = userEvent.setup();
     render(<App initialPath="/settings" />);
 
-    const prefixInput = await screen.findByLabelText("china-buy 前缀");
+    const prefixInput = await screen.findByLabelText("china-buy prefix");
     await user.clear(prefixInput);
     await user.type(prefixInput, "CB");
-    await user.click(screen.getByRole("button", { name: "保存编号规则" }));
+    await user.click(screen.getByRole("button", { name: "Save File-No. rules" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/config/file-no-rules", expect.objectContaining({
       method: "PATCH",
@@ -741,8 +560,8 @@ describe("Contract-RAG frontend", () => {
         production: { prefix: "PD" }
       })
     })));
-    expect(await screen.findByText("已保存存档编号规则")).toBeInTheDocument();
-    expect(screen.getByLabelText("china-buy 前缀")).toHaveValue("CB");
+    expect(await screen.findByText("File-No. rules saved")).toBeInTheDocument();
+    expect(screen.getByLabelText("china-buy prefix")).toHaveValue("CB");
   });
 
   it("blocks duplicate file number rule prefixes in settings", async () => {
@@ -756,10 +575,10 @@ describe("Contract-RAG frontend", () => {
     const user = userEvent.setup();
     render(<App initialPath="/settings" />);
 
-    await user.type(await screen.findByLabelText("ordinary 前缀"), "CN");
-    await user.click(screen.getByRole("button", { name: "保存编号规则" }));
+    await user.type(await screen.findByLabelText("ordinary prefix"), "CN");
+    await user.click(screen.getByRole("button", { name: "Save File-No. rules" }));
 
-    expect(screen.getByText("前缀不能重复")).toBeInTheDocument();
+    expect(screen.getByText("Prefixes must be unique")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith("/api/config/file-no-rules", expect.anything());
   });
 
@@ -775,22 +594,22 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/settings" />);
 
-    expect(screen.getByRole("status", { name: "正在加载设置" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Excel 同步" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "RAG module" })).not.toBeInTheDocument();
 
     resolveConfig(new Response(JSON.stringify(configState), { headers: { "Content-Type": "application/json" }, status: 200 }));
-    expect(await screen.findByRole("button", { name: "Excel 同步" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "RAG module" })).toBeInTheDocument();
   });
 
   it("toggles ledger column visibility from the column configuration menu", async () => {
     const user = userEvent.setup();
     render(<App initialPath="/ledger" />);
 
-    expect(await screen.findByRole("columnheader", { name: "申请人" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "列配置" }));
-    await user.click(screen.getByLabelText("申请人"));
+    expect(await screen.findByRole("columnheader", { name: "Petitioner" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Columns" }));
+    await user.click(screen.getByLabelText("Petitioner"));
 
-    expect(screen.queryByRole("columnheader", { name: "申请人" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Petitioner" })).not.toBeInTheDocument();
   });
 
   it("reorders ledger columns from the column configuration menu and persists the order", async () => {
@@ -799,12 +618,12 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    expect(getLedgerHeaderText().indexOf("文件名")).toBeLessThan(getLedgerHeaderText().indexOf("合同金额"));
+    expect(getLedgerHeaderText().indexOf("File Name")).toBeLessThan(getLedgerHeaderText().indexOf("Contract Amount"));
 
-    await user.click(screen.getByRole("button", { name: "列配置" }));
-    await user.click(screen.getByRole("button", { name: "上移 合同金额" }));
+    await user.click(screen.getByRole("button", { name: "Columns" }));
+    await user.click(screen.getByRole("button", { name: "Move Contract Amount up" }));
 
-    expect(getLedgerHeaderText().indexOf("合同金额")).toBeLessThan(getLedgerHeaderText().indexOf("文件名"));
+    expect(getLedgerHeaderText().indexOf("Contract Amount")).toBeLessThan(getLedgerHeaderText().indexOf("File Name"));
     expect(JSON.parse(window.localStorage.getItem("contract-rag-ledger-columns") ?? "[]")).toEqual([
       "contract_id",
       "counterparty",
@@ -827,48 +646,48 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    expect(getLedgerHeaderText().indexOf("合同金额")).toBeLessThan(getLedgerHeaderText().indexOf("文件名"));
+    expect(getLedgerHeaderText().indexOf("Amount")).toBeLessThan(getLedgerHeaderText().indexOf("File Name"));
   });
 
   it("renders the ledger as a grouped 17-column wide table using the interface fields", async () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    expect(screen.getByRole("scrollbar", { name: "台账横向滚动条" })).toBeInTheDocument();
+    expect(screen.getByRole("scrollbar", { name: "Ledger horizontal scrollbar" })).toBeInTheDocument();
     const table = screen.getByRole("table");
-    expect(within(table).getByRole("columnheader", { name: "主键" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "基本信息" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "金额" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "归口" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "日期" })).toBeInTheDocument();
-    expect(within(table).getAllByRole("columnheader", { name: "状态" }).length).toBeGreaterThan(0);
+    expect(within(table).getByRole("columnheader", { name: "Key" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Basic info" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Amount" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Owner" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Date" })).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader", { name: "Status" }).length).toBeGreaterThan(0);
 
     const headerText = getLedgerHeaderText();
     expect(headerText).toEqual([
-      "选择当前页",
-      "合同编号",
-      "对方公司",
-      "项目名称",
-      "合同版本",
-      "存档编号",
-      "文件名",
-      "合同金额",
-      "币种",
-      "合同期",
-      "年均价",
-      "申请人",
-      "登记日期",
-      "生效日",
-      "到期日",
-      "状态",
-      "操作"
+      "Select current page",
+      "Contract No.",
+      "Counterparty",
+      "Project Name",
+      "Contract Version",
+      "File No.",
+      "File Name",
+      "Contract Amount",
+      "Currency",
+      "Term",
+      "Annualized",
+      "Petitioner",
+      "Registered Date",
+      "Effective Date",
+      "Expiration Date",
+      "Status",
+      "Actions"
     ]);
     expect(headerText).toHaveLength(17);
     expect(screen.getByText("Supply Agreement")).toBeInTheDocument();
     expect(screen.getByText("2026004")).toBeInTheDocument();
-    expect(screen.getByText("2026004-JSUS2026004-UD 玻纤增强复合材料采购")).toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "付款方式" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "归档" })).not.toBeInTheDocument();
+    expect(screen.getByText("2026004-JSUS2026004-UD Glass-Fiber Reinforced Composite Procurement")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Payment method" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Archived" })).not.toBeInTheDocument();
   });
 
   it("filters ledger rows by search text and sorts amount descending", async () => {
@@ -876,14 +695,14 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "PPG");
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "PPG");
 
     expect(screen.getByText("PPG Industries Inc.")).toBeInTheDocument();
     expect(screen.queryByText("Owens Corning Composites")).not.toBeInTheDocument();
 
-    await user.clear(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"));
-    await user.click(screen.getByRole("button", { name: "金额 排序" }));
-    await user.click(screen.getByRole("button", { name: "金额 升序" }));
+    await user.clear(screen.getByPlaceholderText("Search contract no. / counterparty / project"));
+    await user.click(screen.getByRole("button", { name: "Sort by Amount" }));
+    await user.click(screen.getByRole("button", { name: "Amount ascending" }));
 
     const rows = getLedgerDataRows();
     expect(within(rows[0]).getByText("PPG Industries Inc.")).toBeInTheDocument();
@@ -895,9 +714,9 @@ describe("Contract-RAG frontend", () => {
     render(<App />);
 
     await screen.findByText("Owens Corning Composites");
-    await user.click(screen.getByRole("button", { name: "部门筛选" }));
+    await user.click(screen.getByRole("button", { name: "Department filter" }));
 
-    const departmentMenu = screen.getByRole("menu", { name: "部门筛选选项" });
+    const departmentMenu = screen.getByRole("menu", { name: "Department filter options" });
     await user.click(within(departmentMenu).getByLabelText("FPW"));
 
     expect(await screen.findByText("Jushi Group Hong Kong")).toBeInTheDocument();
@@ -906,12 +725,12 @@ describe("Contract-RAG frontend", () => {
 
     await user.click(within(departmentMenu).getByLabelText("PD"));
 
-    expect(screen.getByRole("button", { name: "部门筛选" })).toHaveTextContent("部门：2 项");
+    expect(screen.getByRole("button", { name: "Department filter" })).toHaveTextContent("Department: 2 selected");
     expect(screen.getByText("Jushi Group Hong Kong")).toBeInTheDocument();
     expect(screen.getByText("PPG Industries Inc.")).toBeInTheDocument();
     await waitFor(() => expect(new URLSearchParams(window.location.search).get("department")).toBe("FPW,PD"));
 
-    await user.click(within(departmentMenu).getByLabelText("全部"));
+    await user.click(within(departmentMenu).getByLabelText("All"));
 
     expect(await screen.findByText("Owens Corning Composites")).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).not.toContain("department="));
@@ -929,7 +748,7 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     expect(await screen.findByText("Owens Corning Composites")).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "PPG");
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "PPG");
 
     expect(screen.getByText("PPG Industries Inc.")).toBeInTheDocument();
     expect(screen.queryByText("Owens Corning Composites")).not.toBeInTheDocument();
@@ -942,7 +761,7 @@ describe("Contract-RAG frontend", () => {
     const largeContracts = Array.from({ length: 260 }, (_, index) => ({
       ...contracts[index % contracts.length],
       contract_id: `BULK${String(index + 1).padStart(4, "0")}`,
-      counterparty: `批量供应商 ${String(index + 1).padStart(4, "0")}`,
+      counterparty: `Batch supplier ${String(index + 1).padStart(4, "0")}`,
       file_no: `V${String(index + 1).padStart(4, "0")}`,
       file_name: `V${String(index + 1).padStart(4, "0")}-BULK${String(index + 1).padStart(4, "0")}`
     }));
@@ -955,8 +774,8 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/ledger" />);
 
-    expect(await screen.findByText("批量供应商 0001")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "台账表格虚拟滚动区域" })).toBeInTheDocument();
+    expect(await screen.findByText("Batch supplier 0001")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Ledger table virtual scroll area" })).toBeInTheDocument();
     expect(getLedgerDataRows().length).toBeLessThan(260);
   });
 
@@ -966,18 +785,18 @@ describe("Contract-RAG frontend", () => {
     render(<App />);
 
     await screen.findByText("Owens Corning Composites");
-    const amountSort = screen.getByRole("button", { name: "金额 排序" });
+    const amountSort = screen.getByRole("button", { name: "Sort by Amount" });
 
     await user.click(amountSort);
-    expect(screen.getByRole("button", { name: "金额 升序" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Amount ascending" })).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).toContain("sort=amount_asc"));
 
-    await user.click(screen.getByRole("button", { name: "金额 升序" }));
-    expect(screen.getByRole("button", { name: "金额 降序" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Amount ascending" }));
+    expect(screen.getByRole("button", { name: "Amount descending" })).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).toContain("sort=amount_desc"));
 
-    await user.click(screen.getByRole("button", { name: "金额 降序" }));
-    expect(screen.getByRole("button", { name: "金额 排序" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Amount descending" }));
+    expect(screen.getByRole("button", { name: "Sort by Amount" })).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).not.toContain("sort="));
   });
 
@@ -987,24 +806,24 @@ describe("Contract-RAG frontend", () => {
     render(<App />);
 
     await screen.findByText("Owens Corning Composites");
-    expect(screen.getByRole("button", { name: "合同编号 排序" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "对方公司 排序" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "金额 排序" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "生效日 排序" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "项目名称 排序" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sort by Contract No." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sort by Counterparty" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sort by Amount" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sort by Effective Date" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sort by Project Name" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "对方公司 排序" }));
-    expect(screen.getByRole("button", { name: "对方公司 升序" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sort by Counterparty" }));
+    expect(screen.getByRole("button", { name: "Counterparty ascending" })).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).toContain("sort=counterparty_asc"));
     expect(within(getLedgerDataRows()[0]).getByText("Jushi Group Hong Kong")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "对方公司 升序" }));
-    expect(screen.getByRole("button", { name: "对方公司 降序" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Counterparty ascending" }));
+    expect(screen.getByRole("button", { name: "Counterparty descending" })).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).toContain("sort=counterparty_desc"));
     expect(within(getLedgerDataRows()[0]).getByText("PPG Industries Inc.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "生效日 排序" }));
-    expect(screen.getByRole("button", { name: "生效日 升序" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sort by Effective Date" }));
+    expect(screen.getByRole("button", { name: "Effective Date ascending" })).toBeInTheDocument();
     await waitFor(() => expect(window.location.search).toContain("sort=effective_date_asc"));
     expect(within(getLedgerDataRows()[0]).getByText("PPG Industries Inc.")).toBeInTheDocument();
   });
@@ -1014,30 +833,30 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "no such contract");
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "no such contract");
 
-    expect(await screen.findByText("没有匹配的合同，试试调整筛选")).toBeInTheDocument();
-    expect(screen.queryByText("还没有合同，点「上传合同」开始登记")).not.toBeInTheDocument();
+    expect(await screen.findByText("No matching contracts; try adjusting the filters")).toBeInTheDocument();
+    expect(screen.queryByText("No contracts yet — click 'Upload contract' to start")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "清除筛选" }));
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
 
     expect(await screen.findByText("Owens Corning Composites")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Search contract no. / counterparty / project")).toHaveValue("");
   });
 
   it("preserves ledger search filters when returning from contract detail", async () => {
     const user = userEvent.setup();
     render(<App initialPath="/ledger" />);
 
-    const search = screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名");
+    const search = screen.getByPlaceholderText("Search contract no. / counterparty / project");
     await user.type(search, "PPG");
     const row = (await screen.findByText("PPG Industries Inc.")).closest("tr");
     expect(row).not.toBeNull();
     fireEvent.keyDown(row!, { key: "Enter" });
-    await user.click(await screen.findByRole("link", { name: "返回" }));
+    await user.click(await screen.findByRole("link", { name: "Back" }));
 
-    expect(await screen.findByRole("heading", { name: "合同台账" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名")).toHaveValue("PPG");
+    expect(await screen.findByRole("heading", { name: "Contract ledger" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search contract no. / counterparty / project")).toHaveValue("PPG");
     expect(screen.getByText("PPG Industries Inc.")).toBeInTheDocument();
     expect(screen.queryByText("Owens Corning Composites")).not.toBeInTheDocument();
   });
@@ -1049,14 +868,14 @@ describe("Contract-RAG frontend", () => {
     Object.defineProperty(window, "scrollTo", { configurable: true, value: scrollTo });
     render(<App initialPath="/ledger" />);
 
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "PPG");
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "PPG");
     const row = (await screen.findByText("PPG Industries Inc.")).closest("tr");
     expect(row).not.toBeNull();
     fireEvent.keyDown(row!, { key: "Enter" });
-    await user.click(await screen.findByRole("link", { name: "返回" }));
+    await user.click(await screen.findByRole("link", { name: "Back" }));
 
-    expect(await screen.findByRole("heading", { name: "合同台账" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名")).toHaveValue("PPG");
+    expect(await screen.findByRole("heading", { name: "Contract ledger" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search contract no. / counterparty / project")).toHaveValue("PPG");
     await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ left: 0, top: 480, behavior: "auto" }));
   });
 
@@ -1064,7 +883,7 @@ describe("Contract-RAG frontend", () => {
     const user = userEvent.setup();
     render(<App initialPath="/ledger" />);
 
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "PPG");
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "PPG");
     const row = (await screen.findByText("PPG Industries Inc.")).closest("tr");
     expect(row).not.toBeNull();
     fireEvent.keyDown(row!, { key: "Enter" });
@@ -1072,8 +891,8 @@ describe("Contract-RAG frontend", () => {
     expect(await screen.findByRole("heading", { name: "JSUS2026002" })).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(await screen.findByRole("heading", { name: "合同台账" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名")).toHaveValue("PPG");
+    expect(await screen.findByRole("heading", { name: "Contract ledger" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search contract no. / counterparty / project")).toHaveValue("PPG");
     // The {q:"PPG"} query is genuinely uncached on return (the Enter navigation happened within
     // the 300ms search debounce, before it was ever fetched), so the ledger briefly shows a
     // loading skeleton — await the filtered rows instead of asserting synchronously.
@@ -1086,11 +905,11 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    expect(screen.getByRole("button", { name: "导出 Excel" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Export Excel" })).toBeEnabled();
 
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "no such contract");
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "no such contract");
 
-    expect(await screen.findByRole("button", { name: "导出 Excel" })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "Export Excel" })).toBeDisabled();
   });
 
   it("exports the current ledger filters as an xlsx download", async () => {
@@ -1115,14 +934,14 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    await user.type(screen.getByPlaceholderText("搜索合同编号 / 对方公司 / 项目名"), "Owens");
-    const exportButton = screen.getByRole("button", { name: "导出 Excel" });
+    await user.type(screen.getByPlaceholderText("Search contract no. / counterparty / project"), "Owens");
+    const exportButton = screen.getByRole("button", { name: "Export Excel" });
     await user.click(exportButton);
 
     expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/api\/contracts\/export\?.*q=Owens/), expect.objectContaining({ headers: expect.objectContaining({ Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) }));
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
-    expect(await screen.findByText("已导出当前筛选结果")).toBeInTheDocument();
+    expect(await screen.findByText("Exported the current filter results")).toBeInTheDocument();
   });
 
   it("opens the ledger context menu at the right-click cursor position", async () => {
@@ -1133,10 +952,10 @@ describe("Contract-RAG frontend", () => {
 
     fireEvent.contextMenu(row!, { clientX: 160, clientY: 220 });
 
-    const menu = screen.getByRole("menu", { name: "行操作 JSUS2026004" });
+    const menu = screen.getByRole("menu", { name: "Row actions JSUS2026004" });
     expect(menu).toHaveStyle({ left: "160px", top: "220px" });
     expect(within(menu).getByText("JSUS2026004")).toBeInTheDocument();
-    expect(within(menu).getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/contracts/JSUS2026004");
+    expect(within(menu).getByRole("link", { name: "View detail" })).toHaveAttribute("href", "/contracts/JSUS2026004");
   });
 
   it("opens the same ledger row menu from the fallback more button without opening the drawer", async () => {
@@ -1144,11 +963,11 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await screen.findByText("Owens Corning Composites");
-    await user.click(screen.getByRole("button", { name: "更多操作 JSUS2026004" }));
+    await user.click(screen.getByRole("button", { name: "More actions JSUS2026004" }));
 
-    const menu = screen.getByRole("menu", { name: "行操作 JSUS2026004" });
-    expect(within(menu).getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/contracts/JSUS2026004");
-    expect(within(menu).getByRole("button", { name: "编辑" })).toBeInTheDocument();
+    const menu = screen.getByRole("menu", { name: "Row actions JSUS2026004" });
+    expect(within(menu).getByRole("link", { name: "View detail" })).toHaveAttribute("href", "/contracts/JSUS2026004");
+    expect(within(menu).getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "JSUS2026004" })).not.toBeInTheDocument();
   });
 
@@ -1176,10 +995,10 @@ describe("Contract-RAG frontend", () => {
     expect(row).not.toBeNull();
     fireEvent.contextMenu(row!, { clientX: 160, clientY: 220 });
 
-    await user.click(screen.getByRole("button", { name: "复制编号" }));
+    await user.click(screen.getByRole("button", { name: "Copy number" }));
 
     expect(writeText).toHaveBeenCalledWith("JSUS2026004");
-    expect(await screen.findByText("已复制 JSUS2026004")).toBeInTheDocument();
+    expect(await screen.findByText("Copied JSUS2026004")).toBeInTheDocument();
   });
 
   it("downloads the ledger row PDF from the context menu", async () => {
@@ -1206,12 +1025,12 @@ describe("Contract-RAG frontend", () => {
     expect(row).not.toBeNull();
     fireEvent.contextMenu(row!, { clientX: 160, clientY: 220 });
 
-    await user.click(screen.getByRole("button", { name: "整份" }));
+    await user.click(screen.getByRole("button", { name: "Full" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/JSUS2026004/file", expect.objectContaining({ headers: expect.objectContaining({ Accept: "application/pdf" }) }));
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
-    expect(await screen.findByText("已下载 2026004-JSUS2026004-UD 玻纤增强复合材料采购")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded 2026004-JSUS2026004-UD Glass-Fiber Reinforced Composite Procurement")).toBeInTheDocument();
   });
 
   it("downloads the contract detail PDF from the header action", async () => {
@@ -1236,12 +1055,12 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     await screen.findByRole("heading", { name: "JSUS2026004" });
-    await user.click(screen.getByRole("button", { name: "下载 PDF" }));
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/JSUS2026004/file", expect.objectContaining({ headers: expect.objectContaining({ Accept: "application/pdf" }) }));
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
-    expect(await screen.findByText("已下载 JSUS2026004 signed.pdf")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded JSUS2026004 signed.pdf")).toBeInTheDocument();
   });
 
   it("renders the contract detail PDF through the file endpoint", async () => {
@@ -1298,12 +1117,12 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     const previewError = await screen.findByRole("alert");
-    expect(previewError).toHaveTextContent(/无法加载 PDF/);
-    await user.click(within(previewError).getByRole("button", { name: "下载文件" }));
+    expect(previewError).toHaveTextContent(/Could not load PDF/);
+    await user.click(within(previewError).getByRole("button", { name: "Download file" }));
 
     expect(fileRequests).toBe(2);
     expect(click).toHaveBeenCalled();
-    expect(await screen.findByText("已下载 JSUS2026004 signed.pdf")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded JSUS2026004 signed.pdf")).toBeInTheDocument();
   });
 
   it("opens the contract detail action menu without a view-details item and copies the id", async () => {
@@ -1316,16 +1135,16 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     await screen.findByRole("heading", { name: "JSUS2026004" });
-    await user.click(screen.getByRole("button", { name: "更多操作" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
 
-    const menu = screen.getByRole("menu", { name: "详情操作 JSUS2026004" });
-    expect(within(menu).queryByRole("link", { name: "查看详情" })).not.toBeInTheDocument();
-    expect(within(menu).getByRole("button", { name: "编辑" })).toBeInTheDocument();
-    expect(within(menu).getByRole("button", { name: "下载 PDF" })).toBeInTheDocument();
-    await user.click(within(menu).getByRole("button", { name: "复制编号" }));
+    const menu = screen.getByRole("menu", { name: "Detail actions JSUS2026004" });
+    expect(within(menu).queryByRole("link", { name: "View detail" })).not.toBeInTheDocument();
+    expect(within(menu).getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(within(menu).getByRole("button", { name: "Download PDF" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "Copy number" }));
 
     expect(writeText).toHaveBeenCalledWith("JSUS2026004");
-    expect(await screen.findByText("已复制 JSUS2026004")).toBeInTheDocument();
+    expect(await screen.findByText("Copied JSUS2026004")).toBeInTheDocument();
   });
 
   it("uses the irreversible archive warning for detail delete confirmation", async () => {
@@ -1333,12 +1152,12 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     await screen.findByRole("heading", { name: "JSUS2026004" });
-    await user.click(screen.getByRole("button", { name: "更多操作" }));
-    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    const dialog = screen.getByRole("dialog", { name: "删除合同？" });
-    expect(within(dialog).getByText("将删除合同 JSUS2026004 及其存档 PDF，不可恢复。")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "删除" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Delete contract?" });
+    expect(within(dialog).getByText("This will delete contract JSUS2026004 and its archived PDF. This cannot be undone.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
   it("falls back to legacy copy from the detail menu when clipboard write fails", async () => {
@@ -1360,20 +1179,20 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     await screen.findByRole("heading", { name: "JSUS2026004" });
-    await user.click(screen.getByRole("button", { name: "更多操作" }));
-    await user.click(screen.getByRole("button", { name: "复制编号" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("button", { name: "Copy number" }));
 
     expect(writeText).toHaveBeenCalledWith("JSUS2026004");
     expect(execCommand).toHaveBeenCalledWith("copy");
     expect(copyBuffer).toHaveAttribute("id", "clipboard-copy-buffer");
     expect(copyBuffer).toHaveAttribute("aria-hidden", "true");
-    expect(screen.queryByRole("menu", { name: "详情操作 JSUS2026004" })).not.toBeInTheDocument();
-    expect(await screen.findByText("已复制 JSUS2026004")).toBeInTheDocument();
+    expect(screen.queryByRole("menu", { name: "Detail actions JSUS2026004" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Copied JSUS2026004")).toBeInTheDocument();
   });
 
   it("opens the contract detail edit drawer and saves changes", async () => {
     const user = userEvent.setup();
-    const updatedContract = { ...contracts[0], project_name: "UD 详情页编辑保存" };
+    const updatedContract = { ...contracts[0], project_name: "UD detail-page edit save" };
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/contracts/JSUS2026004" && init?.method === "PATCH") {
@@ -1389,17 +1208,17 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     await screen.findByRole("heading", { name: "JSUS2026004" });
-    await user.click(screen.getByRole("button", { name: "编辑" }));
-    await user.clear(screen.getByLabelText("项目名称"));
-    await user.type(screen.getByLabelText("项目名称"), "UD 详情页编辑保存");
-    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.clear(screen.getByLabelText("Project Name"));
+    await user.type(screen.getByLabelText("Project Name"), "UD detail-page edit save");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/JSUS2026004", expect.objectContaining({
-      body: JSON.stringify({ project_name: "UD 详情页编辑保存" }),
+      body: JSON.stringify({ project_name: "UD detail-page edit save" }),
       headers: expect.objectContaining({ "Content-Type": "application/json" }),
       method: "PATCH"
     }));
-    expect(await screen.findByText("已保存 JSUS2026004")).toBeInTheDocument();
+    expect(await screen.findByText("Saved JSUS2026004")).toBeInTheDocument();
   });
 
   it("keeps the contract detail drawer open when saving fails", async () => {
@@ -1419,15 +1238,15 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/contracts/JSUS2026004" />);
 
     await screen.findByRole("heading", { name: "JSUS2026004" });
-    await user.click(screen.getByRole("button", { name: "编辑" }));
-    await user.clear(screen.getByLabelText("项目名称"));
-    await user.type(screen.getByLabelText("项目名称"), "详情页失败后保留");
-    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.clear(screen.getByLabelText("Project Name"));
+    await user.type(screen.getByLabelText("Project Name"), "kept after detail-page failure");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
-    const failureToast = await screen.findByText("保存失败：该合同已被他处修改，请刷新后重试");
+    const failureToast = await screen.findByText("Failed to save: This contract was modified elsewhere; refresh and retry");
     expect(failureToast.closest(".toast")).toHaveClass("toast-error");
-    expect(screen.getByRole("complementary", { name: "编辑合同 JSUS2026004" })).toBeInTheDocument();
-    expect(screen.getByLabelText("项目名称")).toHaveValue("详情页失败后保留");
+    expect(screen.getByRole("complementary", { name: "Edit contract JSUS2026004" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Project Name")).toHaveValue("kept after detail-page failure");
   });
 
   it("falls back to mock contracts when the REST endpoint is unavailable", async () => {
@@ -1448,8 +1267,8 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/ledger" />);
 
-    expect(await screen.findByText(/加载失败：GET \/contracts.*failed: 500/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText(/Failed to load: GET \/contracts.*failed: 500/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByText("Owens Corning Composites")).toBeInTheDocument();
   });
@@ -1470,11 +1289,11 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/contracts/JSUS2026004" />);
 
-    expect(await screen.findByText("加载失败：GET /contracts/JSUS2026004 failed: 500")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("Failed to load: GET /contracts/JSUS2026004 failed: 500")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("heading", { name: "JSUS2026004" })).toBeInTheDocument();
-    expect(screen.getByText("Owens Corning Composites · UD 玻纤增强复合材料采购")).toBeInTheDocument();
+    expect(screen.getByText("Owens Corning Composites · UD Glass-Fiber Reinforced Composite Procurement")).toBeInTheDocument();
   });
 
   it("falls back to mock processing rows when the REST endpoint is missing locally", async () => {
@@ -1501,7 +1320,7 @@ describe("Contract-RAG frontend", () => {
 
   it("shows toast feedback after saving a ledger drawer", async () => {
     const user = userEvent.setup();
-    const updatedContract = { ...contracts[0], project_name: "UD 玻纤增强复合材料采购 - 修订" };
+    const updatedContract = { ...contracts[0], project_name: "UD Glass-Fiber Reinforced Composite Procurement - revised" };
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === "/api/contracts/JSUS2026004" && init?.method === "PATCH") {
@@ -1516,16 +1335,16 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.clear(screen.getByLabelText("项目名称"));
-    await user.type(screen.getByLabelText("项目名称"), "UD 玻纤增强复合材料采购 - 修订");
-    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await user.clear(screen.getByLabelText("Project Name"));
+    await user.type(screen.getByLabelText("Project Name"), "UD Glass-Fiber Reinforced Composite Procurement - revised");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/JSUS2026004", expect.objectContaining({
-      body: JSON.stringify({ project_name: "UD 玻纤增强复合材料采购 - 修订" }),
+      body: JSON.stringify({ project_name: "UD Glass-Fiber Reinforced Composite Procurement - revised" }),
       headers: expect.objectContaining({ "Content-Type": "application/json" }),
       method: "PATCH"
     }));
-    expect(screen.getByText("已保存 JSUS2026004")).toBeInTheDocument();
+    expect(screen.getByText("Saved JSUS2026004")).toBeInTheDocument();
   });
 
   it("keeps the ledger drawer open and shows an error toast when saving fails", async () => {
@@ -1544,14 +1363,14 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.clear(screen.getByLabelText("项目名称"));
-    await user.type(screen.getByLabelText("项目名称"), "保存失败后保留的项目名");
-    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await user.clear(screen.getByLabelText("Project Name"));
+    await user.type(screen.getByLabelText("Project Name"), "project name kept after a failed save");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
-    const failureToast = await screen.findByText(/保存失败/);
+    const failureToast = await screen.findByText(/Failed to save/);
     expect(failureToast.closest(".toast")).toHaveClass("toast-error");
-    expect(screen.getByRole("complementary", { name: "编辑合同 JSUS2026004" })).toBeInTheDocument();
-    expect(screen.getByLabelText("项目名称")).toHaveValue("保存失败后保留的项目名");
+    expect(screen.getByRole("complementary", { name: "Edit contract JSUS2026004" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Project Name")).toHaveValue("project name kept after a failed save");
   });
 
   it("shows the business status tag in the ledger drawer header", async () => {
@@ -1560,20 +1379,20 @@ describe("Contract-RAG frontend", () => {
 
     await user.click(await screen.findByText("Owens Corning Composites"));
 
-    const drawer = screen.getByRole("complementary", { name: "编辑合同 JSUS2026004" });
+    const drawer = screen.getByRole("complementary", { name: "Edit contract JSUS2026004" });
     const header = drawer.querySelector("header") as HTMLElement;
     expect(within(drawer).getByRole("heading", { name: "JSUS2026004" })).toBeInTheDocument();
-    expect(within(header).getByText("生效中")).toBeInTheDocument();
+    expect(within(header).getByText("Active")).toBeInTheDocument();
   });
 
   it("keeps business status options aligned to the interface enum", async () => {
     const user = userEvent.setup();
     render(<App initialPath="/ledger" />);
 
-    expect(screen.queryByRole("option", { name: "状态：待确认" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Status: Conflict" })).not.toBeInTheDocument();
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    const statusSelect = screen.getByLabelText("业务状态") as HTMLSelectElement;
+    const statusSelect = screen.getByLabelText("Business status") as HTMLSelectElement;
 
     expect(Array.from(statusSelect.options).map((option) => option.value)).toEqual(["active", "expired"]);
   });
@@ -1602,13 +1421,13 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.selectOptions(screen.getByLabelText("部门"), "FPW");
-    await user.selectOptions(screen.getByLabelText("合同版本"), "Framework");
-    await user.selectOptions(screen.getByLabelText("币种"), "CNY");
-    await user.clear(screen.getByLabelText("登记日期"));
-    await user.type(screen.getByLabelText("登记日期"), "2026-05-02");
-    await user.selectOptions(screen.getByLabelText("业务状态"), "expired");
-    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await user.selectOptions(screen.getByLabelText("Department"), "FPW");
+    await user.selectOptions(screen.getByLabelText("Contract Version"), "Framework");
+    await user.selectOptions(screen.getByLabelText("Currency"), "CNY");
+    await user.clear(screen.getByLabelText("Registered Date"));
+    await user.type(screen.getByLabelText("Registered Date"), "2026-05-02");
+    await user.selectOptions(screen.getByLabelText("Business status"), "expired");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     const patchCall = fetchMock.mock.calls.find(([input, init]) => String(input) === "/api/contracts/JSUS2026004" && init?.method === "PATCH");
     expect(patchCall).toBeDefined();
@@ -1633,17 +1452,17 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.clear(screen.getByLabelText("合同金额"));
-    await user.type(screen.getByLabelText("合同金额"), "abc");
-    await user.clear(screen.getByLabelText("生效日"));
-    await user.type(screen.getByLabelText("生效日"), "2026-05-01");
-    await user.clear(screen.getByLabelText("到期日"));
-    await user.type(screen.getByLabelText("到期日"), "2026-04-01");
-    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await user.clear(screen.getByLabelText("Amount"));
+    await user.type(screen.getByLabelText("Amount"), "abc");
+    await user.clear(screen.getByLabelText("Effective Date"));
+    await user.type(screen.getByLabelText("Effective Date"), "2026-05-01");
+    await user.clear(screen.getByLabelText("Expiration Date"));
+    await user.type(screen.getByLabelText("Expiration Date"), "2026-04-01");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
-    expect(screen.getByText("请输入有效金额")).toBeInTheDocument();
-    expect(screen.getByText("到期日不能早于生效日")).toBeInTheDocument();
-    expect(screen.getByLabelText("合同金额")).toHaveFocus();
+    expect(screen.getByText("Enter a valid amount")).toBeInTheDocument();
+    expect(screen.getByText("Expiration date cannot be earlier than the effective date")).toBeInTheDocument();
+    expect(screen.getByLabelText("Amount")).toHaveFocus();
     expect(fetchMock).not.toHaveBeenCalledWith("/api/contracts/JSUS2026004", expect.objectContaining({ method: "PATCH" }));
   });
 
@@ -1653,22 +1472,22 @@ describe("Contract-RAG frontend", () => {
 
     await user.click(await screen.findByText("Owens Corning Composites"));
 
-    expect(screen.getByRole("button", { name: "保存修改" })).toBeDisabled();
-    await user.clear(screen.getByLabelText("项目名称"));
-    await user.type(screen.getByLabelText("项目名称"), "UD 玻纤增强复合材料采购 - 修订");
-    expect(screen.getByRole("button", { name: "保存修改" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await user.clear(screen.getByLabelText("Project Name"));
+    await user.type(screen.getByLabelText("Project Name"), "UD Glass-Fiber Reinforced Composite Procurement - revised");
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: "取消" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    const dialog = screen.getByRole("dialog", { name: "放弃修改？" });
+    const dialog = screen.getByRole("dialog", { name: "Discard changes?" });
     expect(dialog).toBeInTheDocument();
-    expect(within(dialog).getByText("当前修改尚未保存，关闭后将丢失这些改动。")).toBeInTheDocument();
+    expect(within(dialog).getByText("The current changes are unsaved; closing will lose them.")).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "继续编辑" }));
+    await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
     expect(screen.getByRole("heading", { name: "JSUS2026004" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "取消" }));
-    await user.click(screen.getByRole("button", { name: "放弃修改" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(screen.queryByRole("heading", { name: "JSUS2026004" })).not.toBeInTheDocument();
   });
 
@@ -1677,12 +1496,12 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.clear(screen.getByLabelText("项目名称"));
-    await user.type(screen.getByLabelText("项目名称"), "UD 玻纤增强复合材料采购 - 修订");
+    await user.clear(screen.getByLabelText("Project Name"));
+    await user.type(screen.getByLabelText("Project Name"), "UD Glass-Fiber Reinforced Composite Procurement - revised");
 
     fireEvent.keyDown(window, { key: "Escape" });
 
-    const dialog = screen.getByRole("dialog", { name: "放弃修改？" });
+    const dialog = screen.getByRole("dialog", { name: "Discard changes?" });
     expect(dialog).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "JSUS2026004" })).toBeInTheDocument();
   });
@@ -1692,12 +1511,12 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.click(screen.getByRole("button", { name: "删除" }));
-    expect(screen.getByRole("dialog", { name: "删除合同？" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByRole("dialog", { name: "Delete contract?" })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog", { name: "删除合同？" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Delete contract?" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "JSUS2026004" })).toBeInTheDocument();
   });
 
@@ -1717,15 +1536,15 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/ledger" />);
 
     await user.click(await screen.findByText("Owens Corning Composites"));
-    await user.click(screen.getByRole("button", { name: "删除" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    const dialog = screen.getByRole("dialog", { name: "删除合同？" });
-    expect(within(dialog).getByText("将删除合同 JSUS2026004 及其存档 PDF，不可恢复。")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Delete contract?" });
+    expect(within(dialog).getByText("This will delete contract JSUS2026004 and its archived PDF. This cannot be undone.")).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "删除" }));
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/JSUS2026004", expect.objectContaining({ method: "DELETE" }));
-    expect(screen.getByText("已删除 JSUS2026004")).toBeInTheDocument();
+    expect(screen.getByText("Deleted JSUS2026004")).toBeInTheDocument();
     expect(screen.queryByText("Owens Corning Composites")).not.toBeInTheDocument();
   });
 
@@ -1749,10 +1568,10 @@ describe("Contract-RAG frontend", () => {
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
     render(<App initialPath="/ledger" />);
 
-    await user.click(await screen.findByLabelText("选择 JSUS2026004"));
+    await user.click(await screen.findByLabelText("Select JSUS2026004"));
 
-    expect(screen.getByText("已选 1 项")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "导出所选" }));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Export selected" }));
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/batch", expect.objectContaining({
       body: JSON.stringify({ ids: ["JSUS2026004"], action: "export" }),
       headers: expect.objectContaining({ Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
@@ -1760,25 +1579,25 @@ describe("Contract-RAG frontend", () => {
     }));
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
-    expect(await screen.findByText("已导出 1 项")).toBeInTheDocument();
+    expect(await screen.findByText("Exported 1 items")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "取消选择" }));
+    await user.click(screen.getByRole("button", { name: "Clear selection" }));
 
-    expect(screen.queryByText("已选 1 项")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("选择 JSUS2026004")).not.toBeChecked();
+    expect(screen.queryByText("1 selected")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Select JSUS2026004")).not.toBeChecked();
   });
 
   it("clears ledger bulk selection with Escape", async () => {
     const user = userEvent.setup();
     render(<App initialPath="/ledger" />);
 
-    await user.click(await screen.findByLabelText("选择 JSUS2026004"));
-    expect(screen.getByText("已选 1 项")).toBeInTheDocument();
+    await user.click(await screen.findByLabelText("Select JSUS2026004"));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByText("已选 1 项")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("选择 JSUS2026004")).not.toBeChecked();
+    expect(screen.queryByText("1 selected")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Select JSUS2026004")).not.toBeChecked();
   });
 
   it("requires confirmation before bulk deleting selected ledger rows", async () => {
@@ -1797,52 +1616,37 @@ describe("Contract-RAG frontend", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<App initialPath="/ledger" />);
 
-    await user.click(await screen.findByLabelText("选择当前页"));
-    expect(screen.getByRole("region", { name: "批量操作" })).toHaveTextContent("已选 3 项");
+    await user.click(await screen.findByLabelText("Select current page"));
+    expect(screen.getByRole("region", { name: "Bulk actions" })).toHaveTextContent("3 selected");
 
-    await user.click(screen.getByRole("button", { name: "删除所选" }));
-    const dialog = screen.getByRole("dialog", { name: "删除所选合同？" });
-    expect(within(dialog).getByText("将删除选中的 3 份合同及其存档 PDF，不可恢复。")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete selected" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete selected contracts?" });
+    expect(within(dialog).getByText("This will delete the 3 selected contracts and their archived PDFs. This cannot be undone.")).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "删除所选" }));
+    await user.click(within(dialog).getByRole("button", { name: "Delete selected" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contracts/batch", expect.objectContaining({
       body: JSON.stringify({ ids: ["JSUS2026004", "JSUS2026003", "JSUS2026002"], action: "delete" }),
       headers: expect.objectContaining({ "Content-Type": "application/json" }),
       method: "POST"
     }));
-    expect(screen.getByText("已删除 3 份合同")).toBeInTheDocument();
+    expect(screen.getByText("Deleted 3 contracts")).toBeInTheDocument();
     expect(screen.queryByText("Owens Corning Composites")).not.toBeInTheDocument();
     expect(screen.queryByText("Jushi Group Hong Kong")).not.toBeInTheDocument();
     expect(screen.queryByText("PPG Industries Inc.")).not.toBeInTheDocument();
-  });
-
-  it("shows toast feedback after retrying sync", async () => {
-    render(<App initialPath="/processing" />);
-
-    const retryButtons = await screen.findAllByRole("button", { name: "立即重试" });
-    fireEvent.click(retryButtons[0]);
-
-    expect(retryButtons[0]).toBeDisabled();
-    expect(await screen.findByText("已重新发起同步")).toBeInTheDocument();
   });
 
   it("shows failed ingest rows with the backend error message", async () => {
     const failedRows = [
       {
         contract_id: "FAIL2026001",
-        counterparty: "扫描质量测试供应商",
+        counterparty: "Scan-quality test supplier",
         ingest: {
           stage: "ocr_processing" as const,
           status: "failed" as const,
-          last_error: "识别质量过低，请重传更清晰的扫描件"
+          last_error: "Recognition quality too low; re-upload a clearer scan"
         },
-        sync: {
-          state: "pending" as const,
-          attempts: 0,
-          updated_at: "刚刚"
-        },
-        updated_at: "刚刚"
+        updated_at: "just now"
       }
     ];
     vi.stubGlobal(
@@ -1861,10 +1665,10 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/processing" />);
 
-    expect(await screen.findByText("失败")).toBeInTheDocument();
-    expect(screen.getByLabelText("失败：识别质量过低，请重传更清晰的扫描件")).toHaveAttribute(
+    expect((await screen.findAllByText("Failed")).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Failed: Recognition quality too low; re-upload a clearer scan")).toHaveAttribute(
       "title",
-      "识别质量过低，请重传更清晰的扫描件"
+      "Recognition quality too low; re-upload a clearer scan"
     );
   });
 
@@ -1885,8 +1689,8 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/processing" />);
 
-    expect(await screen.findByText("还没有处理记录")).toBeInTheDocument();
-    expect(screen.queryByRole("table", { name: "入库与同步状态表" })).not.toBeInTheDocument();
+    expect(await screen.findByText("No processing records yet")).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Processing status table" })).not.toBeInTheDocument();
   });
 
   it("shows processing overview skeletons while rows are loading", async () => {
@@ -1910,15 +1714,15 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/processing" />);
 
-    expect(screen.getByRole("status", { name: "正在加载入库与同步概览" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "处理中" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading processing overview" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Processing" })).not.toBeInTheDocument();
 
     await act(async () => {
       resolveProcessing(new Response(JSON.stringify(processingRows), { status: 200 }));
       await processingResponse;
       await Promise.resolve();
     });
-    expect(await screen.findByRole("button", { name: /处理中/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Processing/ })).toBeInTheDocument();
   });
 
   it("shows a retryable processing error state when the backend returns an error", async () => {
@@ -1940,38 +1744,12 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/processing" />);
 
-    expect(await screen.findByText("加载失败：GET /processing failed: 500")).toBeInTheDocument();
-    expect(screen.queryByRole("table", { name: "入库与同步状态表" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Failed to load: GET /processing failed: 500")).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Processing status table" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "重试" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(await screen.findByRole("table", { name: "入库与同步状态表" })).toBeInTheDocument();
-  });
-
-  it("counts down retrying sync rows every second", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((input: RequestInfo | URL) => {
-        if (String(input).endsWith("/processing")) {
-          return Promise.resolve(new Response(JSON.stringify(processingRows), { status: 200 }));
-        }
-        return Promise.reject(new Error("unexpected request"));
-      })
-    );
-    vi.useFakeTimers();
-    render(<App initialPath="/processing" />);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    expect(screen.getByText("第 3 次 · 下次 00:42 后")).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(screen.getByText("第 3 次 · 下次 00:41 后")).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Processing status table" })).toBeInTheDocument();
   });
 
   it("polls unfinished processing rows every five seconds", async () => {
@@ -1993,7 +1771,7 @@ describe("Contract-RAG frontend", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(screen.getByText("水处理框架供应商")).toBeInTheDocument();
+    expect(screen.getByText("Water-treatment framework supplier")).toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/processing"))).toHaveLength(1);
 
     await act(async () => {
@@ -2003,11 +1781,10 @@ describe("Contract-RAG frontend", () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/processing")).length).toBeGreaterThan(1);
   });
 
-  it("stops polling processing rows when all rows are done and synced", async () => {
+  it("stops polling processing rows when all rows are done", async () => {
     const settledRows = processingRows.map((row) => ({
       ...row,
-      ingest: { ...row.ingest, stage: "done" as const, status: "done" as const },
-      sync: { ...row.sync, state: "synced" as const }
+      ingest: { ...row.ingest, stage: "done" as const, status: "done" as const }
     }));
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -2027,7 +1804,7 @@ describe("Contract-RAG frontend", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(screen.getByText("水处理框架供应商")).toBeInTheDocument();
+    expect(screen.getByText("Water-treatment framework supplier")).toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/processing"))).toHaveLength(1);
 
     await act(async () => {
@@ -2037,147 +1814,14 @@ describe("Contract-RAG frontend", () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/processing"))).toHaveLength(1);
   });
 
-  it("automatically retries and refreshes retrying sync rows when the countdown reaches zero", async () => {
-    const expiringRows = processingRows.map((row) =>
-      row.contract_id === "JSUS2026006"
-        ? { ...row, sync: { ...row.sync, next_retry_in_seconds: 1 } }
-        : row
-    );
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/processing")) {
-        return Promise.resolve(new Response(JSON.stringify(expiringRows), { status: 200 }));
-      }
-      if (url.endsWith("/sync/retry") && init?.method === "POST") {
-        return Promise.resolve(new Response(JSON.stringify({ state: "retrying" }), { status: 200 }));
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    vi.useFakeTimers();
-    render(<App initialPath="/processing" />);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-
-    expect(screen.getByText("第 3 次 · 下次 00:01 后")).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith("/api/contracts/JSUS2026006/sync/retry", expect.objectContaining({ method: "POST" }));
-    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/processing")).length).toBeGreaterThan(1);
-  });
-
-  it("submits conflict resolutions and locks the merge button while saving", async () => {
-    const user = userEvent.setup();
-    let resolvePost!: () => void;
-    const postResponse = new Promise<Response>((resolve) => {
-      resolvePost = () => resolve(new Response(JSON.stringify({ state: "synced" }), { status: 200 }));
-    });
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/conflict")) {
-        return Promise.resolve(new Response(JSON.stringify(conflicts), { status: 200 }));
-      }
-      if (url.endsWith("/resolve") && init?.method === "POST") {
-        return postResponse;
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    const mergeButton = await screen.findByRole("button", { name: "确认合并" });
-    await user.click(mergeButton);
-
-    expect(mergeButton).toBeDisabled();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/contracts/JSEGRCXS20260003/resolve",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          resolutions: {
-            counterparty: "system",
-            amount: "system",
-            effective_date: "excel"
-          }
-        })
-      })
-    );
-
-    resolvePost();
-    expect(await screen.findByText("已合并 JSEGRCXS20260003，生成新基线")).toBeInTheDocument();
-  });
-
-  it("returns to processing and shows the row as synced after resolving conflicts", async () => {
-    const user = userEvent.setup();
-    const syncedProcessingRows = processingRows.map((row) =>
-      row.contract_id === "JSEGRCXS20260003"
-        ? { ...row, sync: { ...row.sync, state: "synced" as const } }
-        : row
-    );
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/conflict")) {
-        return Promise.resolve(new Response(JSON.stringify(conflicts), { status: 200 }));
-      }
-      if (url.endsWith("/resolve") && init?.method === "POST") {
-        return Promise.resolve(new Response(JSON.stringify({ state: "synced" }), { status: 200 }));
-      }
-      if (url.endsWith("/processing")) {
-        return Promise.resolve(new Response(JSON.stringify(syncedProcessingRows), { status: 200 }));
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    await user.click(await screen.findByRole("button", { name: "确认合并" }));
-
-    const table = await screen.findByRole("table", { name: "入库与同步状态表" });
-    const row = within(table).getByText("JSEGRCXS20260003").closest("tr");
-    expect(row).not.toBeNull();
-    expect(within(row as HTMLTableRowElement).getByText("已同步")).toBeInTheDocument();
-    expect(within(row as HTMLTableRowElement).queryByRole("link", { name: "解决冲突" })).not.toBeInTheDocument();
-  });
-
-  it("shows a concurrency warning when conflict resolution is stale", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/conflict")) {
-        return Promise.resolve(new Response(JSON.stringify(conflicts), { status: 200 }));
-      }
-      if (url.endsWith("/resolve") && init?.method === "POST") {
-        return Promise.resolve(new Response(JSON.stringify({ error: "stale baseline" }), { status: 409 }));
-      }
-      return Promise.reject(new Error("unexpected request"));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<App initialPath="/conflicts/JSEGRCXS20260003" />);
-
-    await user.click(await screen.findByRole("button", { name: "确认合并" }));
-
-    const staleWarnings = await screen.findAllByText("数据已更新，请重新核对");
-    expect(staleWarnings.length).toBeGreaterThanOrEqual(2);
-    expect(staleWarnings.find((node) => node.closest(".toast"))?.closest(".toast")).toHaveClass("toast-error");
-    expect(screen.getByRole("button", { name: "确认合并" })).toBeEnabled();
-    await waitFor(() => {
-      expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/conflict")).length).toBeGreaterThan(1);
-    });
-  });
-
   it("manages the contract version list from settings", async () => {
     const user = userEvent.setup();
     render(<App initialPath="/settings" />);
-    await screen.findByText("存档编号规则");
-    const input = await screen.findByLabelText("新增合同版本");
-    await user.type(input, "采购合同");
-    await user.click(screen.getByRole("button", { name: "添加版本" }));
-    expect(await screen.findByText("采购合同")).toBeInTheDocument();
+    await screen.findByText("File-No. rules");
+    const input = await screen.findByLabelText("Add contract version");
+    await user.type(input, "Purchase Contract");
+    await user.click(screen.getByRole("button", { name: "Add version" }));
+    expect(await screen.findByText("Purchase Contract")).toBeInTheDocument();
   });
 
   it("lets the user pick a contract version before tagging pages", async () => {
@@ -2185,10 +1829,10 @@ describe("Contract-RAG frontend", () => {
     render(<App initialPath="/upload" />);
     const pdf = new File(["%PDF-1.7"], "version-select.pdf", { type: "application/pdf" });
 
-    await user.upload(screen.getByLabelText("选择 PDF 文件"), pdf);
-    expect((await screen.findAllByText("version-select.pdf · 14 页 · 0.0 MB")).length).toBeGreaterThan(0);
+    await user.upload(screen.getByLabelText("Choose PDF file"), pdf);
+    expect((await screen.findAllByText("version-select.pdf · 14 pages · 0.0 MB")).length).toBeGreaterThan(0);
 
-    const select = await screen.findByLabelText("合同版本");
+    const select = await screen.findByLabelText("Contract Version");
     await userEvent.selectOptions(select, "Service Agreement");
     expect((select as HTMLSelectElement).value).toBe("Service Agreement");
   });
@@ -2220,10 +1864,10 @@ describe("Contract-RAG frontend", () => {
     expect(row).not.toBeNull();
     fireEvent.contextMenu(row!, { clientX: 160, clientY: 220 });
 
-    expect(screen.getByRole("button", { name: "整份" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "仅合同" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Full" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Contract only" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "仅合同" }));
+    await user.click(screen.getByRole("button", { name: "Contract only" }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/contracts/JSUS2026004/file?scope=contract",
@@ -2231,7 +1875,7 @@ describe("Contract-RAG frontend", () => {
     );
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
-    expect(await screen.findByText("已下载 JSUS2026004-contract.pdf")).toBeInTheDocument();
+    expect(await screen.findByText("Downloaded JSUS2026004-contract.pdf")).toBeInTheDocument();
   });
 
   it("renders mixed Q&A evidence and opens the source verification page", async () => {
@@ -2243,14 +1887,14 @@ describe("Contract-RAG frontend", () => {
       }
       if (url === "/api/query") {
         return Promise.resolve(new Response(JSON.stringify({
-          question: "付款期限超过 60 天的合同，逾期付款怎么约定违约责任？",
-          answer: "共有 1 份合同匹配付款期限超过 60 天，逾期付款按每日万分之五计算违约金。",
+          question: "For contracts with payment terms over 60 days, how is liability for late payment specified?",
+          answer: "1 contract matches payment terms over 60 days; late payment accrues a daily penalty of 0.05%.",
           evidence: [
             {
               kind: "record",
               contract_id: "JSUS2026004",
               title: "Owens Corning Composites",
-              fields: { "付款期限": "90 天", "金额": "USD 147,664.05" }
+              fields: { "Payment terms": "90 days", "Amount": "USD 147,664.05" }
             },
             {
               kind: "clause",
@@ -2269,18 +1913,18 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    expect(await screen.findByRole("link", { name: "问答" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "合同问答" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Q&A" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Contract Q&A" })).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("输入合同问题"), "付款期限超过 60 天的合同，逾期付款怎么约定违约责任？");
-    await user.click(screen.getByRole("button", { name: "发送" }));
+    await user.type(screen.getByLabelText("Enter a contract question"), "For contracts with payment terms over 60 days, how is liability for late payment specified?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "/api/query",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          question: "付款期限超过 60 天的合同，逾期付款怎么约定违约责任？",
+          question: "For contracts with payment terms over 60 days, how is liability for late payment specified?",
           contract_id: null,
           conversation_id: null,
           scope_type: "all",
@@ -2288,35 +1932,35 @@ describe("Contract-RAG frontend", () => {
         })
       })
     ));
-    expect(await screen.findByText("共有 1 份合同匹配付款期限超过 60 天，逾期付款按每日万分之五计算违约金。")).toBeInTheDocument();
+    expect(await screen.findByText("1 contract matches payment terms over 60 days; late payment accrues a daily penalty of 0.05%.")).toBeInTheDocument();
 
-    const recordTable = screen.getByRole("table", { name: "匹配合同证据" });
-    expect(within(recordTable).getByRole("columnheader", { name: "付款期限" })).toBeInTheDocument();
-    expect(within(recordTable).getByRole("cell", { name: "90 天" })).toBeInTheDocument();
-    expect(screen.getByText("JSUS2026004 · 第 8 页 · Payment")).toBeInTheDocument();
+    const recordTable = screen.getByRole("table", { name: "Matched contract evidence" });
+    expect(within(recordTable).getByRole("columnheader", { name: "Payment terms" })).toBeInTheDocument();
+    expect(within(recordTable).getByRole("cell", { name: "90 days" })).toBeInTheDocument();
+    expect(screen.getByText("JSUS2026004 · p. 8 · Payment")).toBeInTheDocument();
     expect(screen.getByText("late payment shall bear liquidated damages at 0.05% per day")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "核实原文" }));
+    await user.click(screen.getByRole("button", { name: "Verify source" }));
 
-    const dialog = await screen.findByRole("dialog", { name: "原文核实" });
+    const dialog = await screen.findByRole("dialog", { name: "Source verification" });
     expect(document.body).toHaveClass("modal-open");
-    expect(within(dialog).queryByRole("button", { name: "上一页" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Previous page" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Next page" })).not.toBeInTheDocument();
     expect(within(dialog).getByTestId("qa-verify-stage")).toHaveClass("qa-verify-stage-single-page");
-    expect(within(dialog).getByRole("button", { name: "左转 90 度" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "右转 90 度" })).toBeInTheDocument();
-    expect(within(dialog).getByAltText("JSUS2026004 第 8 页原文")).toHaveAttribute("src", "/api/contracts/JSUS2026004/pages/8");
+    expect(within(dialog).getByRole("button", { name: "Rotate left 90°" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Rotate right 90°" })).toBeInTheDocument();
+    expect(within(dialog).getByAltText("JSUS2026004 page 8 source")).toHaveAttribute("src", "/api/contracts/JSUS2026004/pages/8");
     expect(within(dialog).getByTestId("source-highlight")).toBeInTheDocument();
-    expect(within(dialog).getByRole("link", { name: "新窗口打开" })).toHaveAttribute("href", "/api/contracts/JSUS2026004/pages/8");
+    expect(within(dialog).getByRole("link", { name: "Open in new window" })).toHaveAttribute("href", "/api/contracts/JSUS2026004/pages/8");
 
     const page = within(dialog).getByTestId("qa-page-image-wrap");
     expect(page).toHaveStyle({ transform: "rotate(0deg)" });
-    await user.click(within(dialog).getByRole("button", { name: "右转 90 度" }));
+    await user.click(within(dialog).getByRole("button", { name: "Rotate right 90°" }));
     expect(page).toHaveStyle({ transform: "rotate(90deg)" });
-    await user.click(within(dialog).getByRole("button", { name: "左转 90 度" }));
+    await user.click(within(dialog).getByRole("button", { name: "Rotate left 90°" }));
     expect(page).toHaveStyle({ transform: "rotate(0deg)" });
 
-    await user.click(within(dialog).getByRole("button", { name: "关闭原文核实" }));
+    await user.click(within(dialog).getByRole("button", { name: "Close source verification" }));
     await waitFor(() => expect(document.body).not.toHaveClass("modal-open"));
   });
 
@@ -2329,8 +1973,8 @@ describe("Contract-RAG frontend", () => {
       }
       if (url === "/api/query") {
         return Promise.resolve(new Response(JSON.stringify({
-          question: "付款期限是什么？",
-          answer: "Owens 相关合同付款期限为 90 天。",
+          question: "What are the payment terms?",
+          answer: "Owens-related contracts have payment terms of 90 days.",
           evidence: []
         }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
@@ -2340,17 +1984,17 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    await user.selectOptions(await screen.findByLabelText("范围类型"), "supplier");
-    await user.type(screen.getByLabelText("范围值"), "Owens Corning");
-    await user.type(screen.getByLabelText("输入合同问题"), "付款期限是什么？");
-    await user.click(screen.getByRole("button", { name: "发送" }));
+    await user.selectOptions(await screen.findByLabelText("Scope type"), "supplier");
+    await user.type(screen.getByLabelText("Scope value"), "Owens Corning");
+    await user.type(screen.getByLabelText("Enter a contract question"), "What are the payment terms?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "/api/query",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          question: "付款期限是什么？",
+          question: "What are the payment terms?",
           contract_id: null,
           conversation_id: null,
           scope_type: "supplier",
@@ -2358,7 +2002,7 @@ describe("Contract-RAG frontend", () => {
         })
       })
     ));
-    expect(await screen.findByText("Owens 相关合同付款期限为 90 天。")).toBeInTheDocument();
+    expect(await screen.findByText("Owens-related contracts have payment terms of 90 days.")).toBeInTheDocument();
   });
 
   it("warns and locks the composer when the conversation hits its message cap", async () => {
@@ -2370,8 +2014,8 @@ describe("Contract-RAG frontend", () => {
       }
       if (url === "/api/query") {
         return Promise.resolve(new Response(JSON.stringify({
-          question: "它什么时候到期呢",
-          answer: "到期日为 2026 年 12 月 31 日。",
+          question: "when does it expire",
+          answer: "The expiration date is December 31, 2026.",
           conversation_id: null,
           conversation_full: true,
           evidence: []
@@ -2383,13 +2027,13 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    await user.type(await screen.findByLabelText("输入合同问题"), "它什么时候到期呢");
-    await user.click(screen.getByRole("button", { name: "发送" }));
+    await user.type(await screen.findByLabelText("Enter a contract question"), "when does it expire");
+    await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(await screen.findByText("到期日为 2026 年 12 月 31 日。")).toBeInTheDocument();
-    expect(await screen.findByText(/本次对话已达长度上限/)).toBeInTheDocument();
-    expect(screen.getByLabelText("输入合同问题")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "开启新对话" })).toBeInTheDocument();
+    expect(await screen.findByText("The expiration date is December 31, 2026.")).toBeInTheDocument();
+    expect(await screen.findByText(/This conversation has reached its length limit/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Enter a contract question")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start new conversation" })).toBeInTheDocument();
   });
 
   it("moves a submitted Q&A question into the thread while the answer is loading", async () => {
@@ -2412,22 +2056,22 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    const input = await screen.findByLabelText("输入合同问题");
-    await user.type(input, "当前所有还在生效的合同是什么");
-    await user.click(screen.getByRole("button", { name: "发送" }));
+    const input = await screen.findByLabelText("Enter a contract question");
+    await user.type(input, "what are all the currently active contracts");
+    await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByText("当前所有还在生效的合同是什么")).toBeInTheDocument();
+    expect(screen.getByText("what are all the currently active contracts")).toBeInTheDocument();
     expect(input).toHaveValue("");
-    expect(screen.getByText("正在检索合同库")).toBeInTheDocument();
-    expect(screen.getByText("分析台账记录和原文片段，生成可核实回答…")).toBeInTheDocument();
+    expect(screen.getByText("Searching the contract corpus")).toBeInTheDocument();
+    expect(screen.getByText("Analyzing ledger records and source text to produce a verifiable answer…")).toBeInTheDocument();
 
     resolveQuery(new Response(JSON.stringify({
-      question: "当前所有还在生效的合同是什么",
-      answer: "当前共有 3 份生效合同。",
+      question: "what are all the currently active contracts",
+      answer: "There are 3 active contracts.",
       evidence: []
     }), { headers: { "Content-Type": "application/json" }, status: 200 }));
 
-    expect(await screen.findByText("当前共有 3 份生效合同。")).toBeInTheDocument();
+    expect(await screen.findByText("There are 3 active contracts.")).toBeInTheDocument();
   });
 
   it("submits Q&A with Enter and keeps Shift Enter as a newline", async () => {
@@ -2439,8 +2083,8 @@ describe("Contract-RAG frontend", () => {
       }
       if (url === "/api/query") {
         return Promise.resolve(new Response(JSON.stringify({
-          question: "第一行\n第二行",
-          answer: "已按多行问题检索。",
+          question: "Line 1\nLine 2",
+          answer: "Searched by the multi-line question.",
           evidence: []
         }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
@@ -2450,12 +2094,12 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    const input = await screen.findByLabelText("输入合同问题");
-    await user.type(input, "第一行");
+    const input = await screen.findByLabelText("Enter a contract question");
+    await user.type(input, "Line 1");
     await user.keyboard("{Shift>}{Enter}{/Shift}");
-    await user.type(input, "第二行");
+    await user.type(input, "Line 2");
 
-    expect(input).toHaveValue("第一行\n第二行");
+    expect(input).toHaveValue("Line 1\nLine 2");
     expect(fetchMock).not.toHaveBeenCalledWith("/api/query", expect.anything());
 
     await user.keyboard("{Enter}");
@@ -2465,7 +2109,7 @@ describe("Contract-RAG frontend", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          question: "第一行\n第二行",
+          question: "Line 1\nLine 2",
           contract_id: null,
           conversation_id: null,
           scope_type: "all",
@@ -2473,17 +2117,17 @@ describe("Contract-RAG frontend", () => {
         })
       })
     ));
-    expect(await screen.findByText("已按多行问题检索。")).toBeInTheDocument();
+    expect(await screen.findByText("Searched by the multi-line question.")).toBeInTheDocument();
     expect(input).toHaveValue("");
   });
 
   it("keeps the Q&A shell fixed while only history and chat content scroll", async () => {
     render(<App initialPath="/qa" />);
 
-    expect(await screen.findByText("历史聊天")).toBeInTheDocument();
+    expect(await screen.findByText("Chat history")).toBeInTheDocument();
     const qaPage = document.querySelector(".qa-page");
     const history = document.querySelector(".qa-history");
-    const historyList = screen.getByLabelText("历史聊天列表");
+    const historyList = screen.getByLabelText("Chat history list");
     const workspace = document.querySelector(".qa-workspace");
     const thread = document.querySelector(".qa-thread");
 
@@ -2508,11 +2152,11 @@ describe("Contract-RAG frontend", () => {
         return Promise.resolve(new Response(JSON.stringify({ ...configState, ragEnabled: true }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       if (url === "/api/qa/conversations" && !init?.method) {
-        const items = deleted ? [] : [{ conversation_id: "c1", title: "生效合同", created_at: "2026-06-18T00:00:00Z", updated_at: "2026-06-18T00:01:00Z", message_count: 2 }];
+        const items = deleted ? [] : [{ conversation_id: "c1", title: "Active contract", created_at: "2026-06-18T00:00:00Z", updated_at: "2026-06-18T00:01:00Z", message_count: 2 }];
         return Promise.resolve(new Response(JSON.stringify(items), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       if (url === "/api/qa/conversations" && init?.method === "POST") {
-        return Promise.resolve(new Response(JSON.stringify({ conversation_id: "c2", title: "新会话", created_at: "2026-06-18T00:02:00Z", updated_at: "2026-06-18T00:02:00Z", message_count: 0 }), { headers: { "Content-Type": "application/json" }, status: 200 }));
+        return Promise.resolve(new Response(JSON.stringify({ conversation_id: "c2", title: "New conversation", created_at: "2026-06-18T00:02:00Z", updated_at: "2026-06-18T00:02:00Z", message_count: 0 }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       if (url === "/api/qa/conversations/c1" && init?.method === "DELETE") {
         deleted = true;
@@ -2521,18 +2165,18 @@ describe("Contract-RAG frontend", () => {
       if (url === "/api/qa/conversations/c1") {
         return Promise.resolve(new Response(JSON.stringify({
           conversation_id: "c1",
-          title: "生效合同",
+          title: "Active contract",
           created_at: "2026-06-18T00:00:00Z",
           updated_at: "2026-06-18T00:01:00Z",
           message_count: 2,
           messages: [
-            { message_id: "m1", conversation_id: "c1", role: "user", content: "当前所有还在生效的合同是什么", evidence: [], created_at: "2026-06-18T00:00:00Z" },
-            { message_id: "m2", conversation_id: "c1", role: "assistant", content: "当前共有 3 份生效合同。", evidence: [], created_at: "2026-06-18T00:01:00Z" }
+            { message_id: "m1", conversation_id: "c1", role: "user", content: "what are all the currently active contracts", evidence: [], created_at: "2026-06-18T00:00:00Z" },
+            { message_id: "m2", conversation_id: "c1", role: "assistant", content: "There are 3 active contracts.", evidence: [], created_at: "2026-06-18T00:01:00Z" }
           ]
         }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       if (url === "/api/qa/conversations/c2") {
-        return Promise.resolve(new Response(JSON.stringify({ conversation_id: "c2", title: "新会话", created_at: "2026-06-18T00:02:00Z", updated_at: "2026-06-18T00:02:00Z", message_count: 0, messages: [] }), { headers: { "Content-Type": "application/json" }, status: 200 }));
+        return Promise.resolve(new Response(JSON.stringify({ conversation_id: "c2", title: "New conversation", created_at: "2026-06-18T00:02:00Z", updated_at: "2026-06-18T00:02:00Z", message_count: 0, messages: [] }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       return Promise.reject(new Error(`Unexpected URL ${url}`));
     });
@@ -2540,22 +2184,22 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    expect(await screen.findByText("历史聊天")).toBeInTheDocument();
-    expect(await screen.findByText("生效合同")).toBeInTheDocument();
+    expect(await screen.findByText("Chat history")).toBeInTheDocument();
+    expect(await screen.findByText("Active contract")).toBeInTheDocument();
 
-    await user.click(screen.getByText("生效合同"));
-    expect(await screen.findByText("当前所有还在生效的合同是什么")).toBeInTheDocument();
-    expect(await screen.findByText("当前共有 3 份生效合同。")).toBeInTheDocument();
+    await user.click(screen.getByText("Active contract"));
+    expect(await screen.findByText("what are all the currently active contracts")).toBeInTheDocument();
+    expect(await screen.findByText("There are 3 active contracts.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "New conversation" }));
-    expect(await screen.findByText("向合同库提问")).toBeInTheDocument();
+    expect(await screen.findByText("Ask the contract corpus")).toBeInTheDocument();
 
-    await user.click(screen.getByText("生效合同"));
-    await user.hover(screen.getByText("生效合同"));
-    await user.click(screen.getByRole("button", { name: "删除 生效合同" }));
-    const dialog = await screen.findByRole("dialog", { name: "删除对话？" });
-    expect(within(dialog).getByText("将删除「生效合同」及其中所有问答记录，不可恢复。")).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "删除" }));
+    await user.click(screen.getByText("Active contract"));
+    await user.hover(screen.getByText("Active contract"));
+    await user.click(screen.getByRole("button", { name: "Delete Active contract" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete conversation?" });
+    expect(within(dialog).getByText('This will delete "Active contract" and all of its Q&A records. This cannot be undone.')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/qa/conversations/c1", expect.objectContaining({ method: "DELETE" })));
   });
@@ -2570,19 +2214,19 @@ describe("Contract-RAG frontend", () => {
       }
       if (url === "/api/qa/conversations" && !init?.method) {
         return Promise.resolve(new Response(JSON.stringify([
-          { conversation_id: "c1", title: "生效合同", created_at: "2026-06-18T00:00:00Z", updated_at: "2026-06-18T00:01:00Z", message_count: 2 }
+          { conversation_id: "c1", title: "Active contract", created_at: "2026-06-18T00:00:00Z", updated_at: "2026-06-18T00:01:00Z", message_count: 2 }
         ]), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
       if (url === "/api/qa/conversations/c1") {
         return Promise.resolve(new Response(JSON.stringify({
           conversation_id: "c1",
-          title: "生效合同",
+          title: "Active contract",
           created_at: "2026-06-18T00:00:00Z",
           updated_at: "2026-06-18T00:01:00Z",
           message_count: 2,
           messages: [
-            { message_id: "m1", conversation_id: "c1", role: "user", content: "当前所有还在生效的合同是什么", evidence: [], created_at: "2026-06-18T00:00:00Z" },
-            { message_id: "m2", conversation_id: "c1", role: "assistant", content: "当前共有 3 份生效合同。", evidence: [], created_at: "2026-06-18T00:01:00Z" }
+            { message_id: "m1", conversation_id: "c1", role: "user", content: "what are all the currently active contracts", evidence: [], created_at: "2026-06-18T00:00:00Z" },
+            { message_id: "m2", conversation_id: "c1", role: "assistant", content: "There are 3 active contracts.", evidence: [], created_at: "2026-06-18T00:01:00Z" }
           ]
         }), { headers: { "Content-Type": "application/json" }, status: 200 }));
       }
@@ -2595,15 +2239,15 @@ describe("Contract-RAG frontend", () => {
 
     render(<App initialPath="/qa" />);
 
-    await user.click(await screen.findByText("生效合同"));
-    expect(await screen.findByText("当前共有 3 份生效合同。")).toBeInTheDocument();
+    await user.click(await screen.findByText("Active contract"));
+    expect(await screen.findByText("There are 3 active contracts.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "台账" }));
-    expect(await screen.findByRole("heading", { name: "合同台账" })).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Ledger" }));
+    expect(await screen.findByRole("heading", { name: "Contract ledger" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "问答" }));
+    await user.click(screen.getByRole("link", { name: "Q&A" }));
 
-    expect(await screen.findByText("当前所有还在生效的合同是什么")).toBeInTheDocument();
-    expect(screen.getByText("当前共有 3 份生效合同。")).toBeInTheDocument();
+    expect(await screen.findByText("what are all the currently active contracts")).toBeInTheDocument();
+    expect(screen.getByText("There are 3 active contracts.")).toBeInTheDocument();
   });
 });

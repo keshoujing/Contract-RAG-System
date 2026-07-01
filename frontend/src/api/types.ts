@@ -1,4 +1,3 @@
-export type SyncState = "synced" | "pending" | "retrying" | "conflict" | "disabled";
 export type IngestStage =
   | "uploaded"
   | "tagging"
@@ -12,7 +11,6 @@ export type IngestStage =
   | "failed";
 
 export type ContractStatus = "active" | "expired";
-export type FieldOwner = "system" | "human";
 export type PageRole = "approval" | "contract" | "other";
 
 export interface ContractRow {
@@ -46,29 +44,7 @@ export interface ProcessingRow {
     status: "running" | "done" | "failed";
     last_error?: string;
   };
-  sync: {
-    state: SyncState;
-    attempts: number;
-    last_error?: string;
-    last_attempt_at?: string;
-    next_retry_in_seconds?: number;
-    updated_at: string;
-  };
   updated_at: string;
-}
-
-export interface ConflictField {
-  field: keyof ContractRow | "amount";
-  owner: FieldOwner;
-  baseline: string;
-  system: string;
-  excel: string;
-  suggested?: "system" | "excel";
-}
-
-export interface ResolveConflictPayload {
-  contractId: string;
-  resolutions: Record<string, "system" | "excel" | string>;
 }
 
 export interface FileNoRule {
@@ -79,9 +55,6 @@ export interface FileNoRule {
 
 export interface ConfigState {
   ragEnabled: boolean;
-  excelEnabled: boolean;
-  backupEnabled: boolean;
-  lockCheckEnabled: boolean;
   fileNoRules: FileNoRule[];
   contractVersions: string[];
 }

@@ -24,18 +24,18 @@ from __future__ import annotations
 from contract_rag.retrieval.evidence import CLAUSE, RECORD, record_item
 from contract_rag.retrieval.tools import _norm
 
-ABSTAIN_ANSWER = "未找到足以支撑回答的合同依据。"
+ABSTAIN_ANSWER = "No contract evidence sufficient to support an answer was found."
 
 # Ledger columns surfaced as record evidence, in display order, with stable
 # labels. Values always come from the real row (never the LLM), so a swapped
 # value cannot survive. Restricted to fields ``query_ledger`` returns.
 _RECORD_FIELDS: tuple[tuple[str, str], ...] = (
-    ("counterparty", "对方公司"),
-    ("amount", "金额"),
-    ("currency", "币种"),
-    ("department", "部门"),
-    ("effective_date", "生效日期"),
-    ("expiration_date", "到期日期"),
+    ("counterparty", "Counterparty"),
+    ("amount", "Amount"),
+    ("currency", "Currency"),
+    ("department", "Department"),
+    ("effective_date", "Effective Date"),
+    ("expiration_date", "Expiration Date"),
 )
 
 

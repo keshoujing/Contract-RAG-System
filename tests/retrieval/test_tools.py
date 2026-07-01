@@ -11,10 +11,10 @@ from contract_rag.retrieval import tools
 _ROWS = [
     {"contract_id": "2026002", "counterparty": "Linde Gas & Equipment Inc.",
      "amount": 70904.55, "currency": "USD", "department": "OPS",
-     "contract_type": "采购合同", "project_name": "gas supply"},
+     "contract_type": "Supply", "project_name": "gas supply"},
     {"contract_id": "2024030", "counterparty": "UniFirst Inc.",
      "amount": 30000.0, "currency": "USD", "department": "HR",
-     "contract_type": "服务合同", "project_name": "uniform rental"},
+     "contract_type": "Services", "project_name": "uniform rental"},
 ]
 
 
@@ -113,11 +113,11 @@ def test_search_clauses_can_filter_multiple_contract_ids(monkeypatch):
 
 
 def test_attach_clause_provenance_copies_page_and_bbox():
-    chunks = [{"contract_id": "c1", "page": 2, "section": "付款",
-               "snippet": "审计费用分两期支付，逾期按万分之五。",
+    chunks = [{"contract_id": "c1", "page": 2, "section": "Payment",
+               "snippet": "Audit fees are paid in two installments; late payment accrues 0.05% per day.",
                "bbox": [1.0, 2.0, 3.0, 4.0]}]
     items = [{"kind": "clause", "contract_id": "c1",
-              "snippet": "逾期按万分之五", "page": None, "bbox": None}]
+              "snippet": "late payment accrues 0.05% per day", "page": None, "bbox": None}]
     out = tools.attach_clause_provenance(items, chunks)
     assert out[0]["page"] == 2
     assert out[0]["bbox"] == [1.0, 2.0, 3.0, 4.0]
@@ -127,19 +127,19 @@ def test_attach_clause_provenance_fuzzy_match_ignoring_whitespace():
     # LLM dropped spaces / lightly reworded — still the same passage, so page
     # must still attach (verify popup degrades badly if page is lost).
     chunks = [{"contract_id": "c1", "page": 7,
-               "snippet": "基础 IT 服务响应时间不超过 2 小时，紧急故障响应不超过 1 小时。",
+               "snippet": "Basic IT service response time is within 2 hours; urgent incident response within 1 hour.",
                "bbox": None}]
     items = [{"kind": "clause", "contract_id": "c1",
-              "snippet": "基础IT服务响应时间不超过2小时", "page": None, "bbox": None}]
+              "snippet": "BasicITserviceresponsetimeiswithin2hours", "page": None, "bbox": None}]
     out = tools.attach_clause_provenance(items, chunks)
     assert out[0]["page"] == 7
 
 
 def test_attach_clause_provenance_no_match_leaves_none():
-    chunks = [{"contract_id": "c1", "page": 2, "snippet": "完全不同的内容",
+    chunks = [{"contract_id": "c1", "page": 2, "snippet": "Completely different content",
                "bbox": [1.0, 2.0, 3.0, 4.0]}]
     items = [{"kind": "clause", "contract_id": "c1",
-              "snippet": "找不到的片段", "page": None, "bbox": None}]
+              "snippet": "a snippet that cannot be found", "page": None, "bbox": None}]
     out = tools.attach_clause_provenance(items, chunks)
     assert out[0]["page"] is None
     assert out[0]["bbox"] is None

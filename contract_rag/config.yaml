@@ -40,7 +40,3 @@ models:
   rag_light:    gemini-2.5-flash-lite    # classify / sufficiency / rewrite (cheap judgments)
   rag_judge:    gemini-2.5-flash         # RAGAS LLM-as-judge (3-flash-preview returns list-content RAGAS can't parse)
   rerank:       semantic-ranker-default@latest  # Vertex Ranking API model (retrieval.use_reranker); managed cross-encoder, replaces OOM-y bge
-
-excel:                  # transition-period Excel ledger sync (decision 15); detachable
-  enabled: false        # false = disconnect Excel entirely (core never depends on it)
-  path: ./contract_ledger.xlsx   # the human-owned business ledger workbook

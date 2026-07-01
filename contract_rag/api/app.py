@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from contract_rag.api.routes import conflicts, config, contracts, processing, query, uploads
+from contract_rag.api.routes import config, contracts, processing, query, uploads
 from contract_rag.storage import db
 
 
@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for module in (uploads, contracts, processing, conflicts, config, query):
+    for module in (uploads, contracts, processing, config, query):
         app.include_router(module.router, prefix="/api")
     return app
 

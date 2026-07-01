@@ -4,10 +4,10 @@ from evals import feedback_gold as fg
 
 def test_question_for_returns_preceding_user_message():
     messages = [
-        {"message_id": "u1", "role": "user", "content": "付款期限？"},
+        {"message_id": "u1", "role": "user", "content": "What are the payment terms?"},
         {"message_id": "a1", "role": "assistant", "content": "Net 30."},
     ]
-    assert fg.question_for("a1", messages) == "付款期限？"
+    assert fg.question_for("a1", messages) == "What are the payment terms?"
 
 
 def test_question_for_uses_nearest_preceding_user_turn():
@@ -25,12 +25,12 @@ def test_question_for_missing_returns_empty():
 
 
 def test_to_gold_candidate_pulls_contract_and_marks_for_review():
-    feedback = {"score": "down", "answer": "错误答案", "comment": "金额不对",
+    feedback = {"score": "down", "answer": "wrong answer", "comment": "amount is wrong",
                 "evidence": [{"kind": "record", "contract_id": "2026002"}]}
-    c = fg.to_gold_candidate(feedback, "金额是多少？")
-    assert c["question"] == "金额是多少？"
+    c = fg.to_gold_candidate(feedback, "What is the amount?")
+    assert c["question"] == "What is the amount?"
     assert c["contract_id"] == "2026002"
     assert c["ground_truth"] == ""        # human fills after fixing — vote != truth
     assert c["score"] == "down"
-    assert c["answer_was"] == "错误答案"
-    assert c["comment"] == "金额不对"
+    assert c["answer_was"] == "wrong answer"
+    assert c["comment"] == "amount is wrong"

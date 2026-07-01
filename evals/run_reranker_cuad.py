@@ -1,6 +1,6 @@
 """Reranker A/B on the 100-contract CUAD corpus (the headroom re-test).
 
-The 4-contract test (memory/retrieval_eval.md §八) found no reranker gain because
+The 4-contract test (memory/retrieval_eval.md §8) found no reranker gain because
 cov@5 ≈ cov@20 (recall saturated — no headroom). This re-runs the same comparison
 on a real 100-contract / 6.5k-chunk corpus with an expert-annotated gold set, to
 see whether a bigger corpus finally gives the reranker something to do.

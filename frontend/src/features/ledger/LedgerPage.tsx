@@ -174,10 +174,10 @@ export function LedgerPage() {
     try {
       const savedContract = await patchContract(contract.contract_id, changes, contract);
       setSavedRows((current) => ({ ...current, [savedContract.contract_id]: savedContract }));
-      toast.success(`已保存 ${savedContract.contract_id}`);
+      toast.success(`Saved ${savedContract.contract_id}`);
       setSelected(null);
     } catch (saveError) {
-      toast.error(`保存失败：${getSaveErrorMessage(saveError)}`);
+      toast.error(`Failed to save: ${getSaveErrorMessage(saveError)}`);
     }
   }
 
@@ -191,10 +191,10 @@ export function LedgerPage() {
       setSelected((current) => current?.contract_id === contractId ? null : current);
       setSelectedIds((current) => current.filter((id) => id !== contractId));
       setMenuFor(null);
-      toast.success(`已删除 ${contractId}`);
+      toast.success(`Deleted ${contractId}`);
       setPendingDeleteId(null);
     } catch (deleteError) {
-      toast.error(`删除失败：${getErrorMessage(deleteError)}`);
+      toast.error(`Delete failed: ${getErrorMessage(deleteError)}`);
     } finally {
       setIsDeleting(false);
     }
@@ -209,10 +209,10 @@ export function LedgerPage() {
       setDeletedIds((current) => [...current, ...ids]);
       setSelectedIds((current) => current.filter((id) => !ids.includes(id)));
       setSelected((current) => current && ids.includes(current.contract_id) ? null : current);
-      toast.success(`已删除 ${ids.length} 份合同`);
+      toast.success(`Deleted ${ids.length} contracts`);
       setPendingBulkDeleteIds(null);
     } catch (deleteError) {
-      toast.error(`删除失败：${getErrorMessage(deleteError)}`);
+      toast.error(`Delete failed: ${getErrorMessage(deleteError)}`);
     } finally {
       setIsBulkDeleting(false);
     }
@@ -229,13 +229,13 @@ export function LedgerPage() {
   async function copyContractId(contractId: string) {
     await navigator.clipboard?.writeText(contractId);
     setMenuFor(null);
-    toast.success(`已复制 ${contractId}`);
+    toast.success(`Copied ${contractId}`);
   }
 
   async function downloadPdf(contractId: string, scope: "full" | "contract" = "full") {
     const contract = data.find((item) => item.contract_id === contractId);
     if (!contract?.file_name) {
-      toast.error("无存档文件，无法下载 PDF");
+      toast.error("No archived file; cannot download PDF");
       return;
     }
     const filename = scope === "contract" ? `${contractId}-contract.pdf` : (contract.file_name || "signed.pdf");
@@ -243,9 +243,9 @@ export function LedgerPage() {
       const blob = await downloadContractFile(contractId, scope);
       downloadBlob(blob, filename);
       setMenuFor(null);
-      toast.success(`已下载 ${filename}`);
+      toast.success(`Downloaded ${filename}`);
     } catch (downloadError) {
-      toast.error(`下载失败：${getErrorMessage(downloadError)}`);
+      toast.error(`Download failed: ${getErrorMessage(downloadError)}`);
     }
   }
 
@@ -254,9 +254,9 @@ export function LedgerPage() {
     try {
       const blob = await exportContracts(filters, data);
       downloadBlob(blob, "contract-ledger.xlsx");
-      toast.success("已导出当前筛选结果");
+      toast.success("Exported the current filter results");
     } catch (exportError) {
-      toast.error(`导出失败：${getErrorMessage(exportError)}`);
+      toast.error(`Export failed: ${getErrorMessage(exportError)}`);
     } finally {
       setIsExporting(false);
     }
@@ -268,9 +268,9 @@ export function LedgerPage() {
       const selectedRows = data.filter((contract) => selectedVisibleIds.includes(contract.contract_id));
       const blob = await exportContractBatch(selectedVisibleIds, selectedRows);
       downloadBlob(blob, "selected-contracts.xlsx");
-      toast.success(`已导出 ${selectedVisibleIds.length} 项`);
+      toast.success(`Exported ${selectedVisibleIds.length} items`);
     } catch (exportError) {
-      toast.error(`导出失败：${getErrorMessage(exportError)}`);
+      toast.error(`Export failed: ${getErrorMessage(exportError)}`);
     } finally {
       setIsBatchExporting(false);
     }
@@ -279,39 +279,39 @@ export function LedgerPage() {
   return (
     <>
       <PageHeader
-        title="合同台账"
-        subtitle="共 1,284 份合同 · 最近更新 2026-05-31 09:22"
-        actions={<><Button icon={<Download size={16} />} disabled={data.length === 0} loading={isExporting} onClick={() => void exportCurrentFilters()}>导出 Excel</Button><Link to="/upload" className="button button-primary"><FilePlus2 size={16} />上传合同</Link></>}
+        title="Contract ledger"
+        subtitle="1,284 contracts · last updated 2026-05-31 09:22"
+        actions={<><Button icon={<Download size={16} />} disabled={data.length === 0} loading={isExporting} onClick={() => void exportCurrentFilters()}>Export Excel</Button><Link to="/upload" className="button button-primary"><FilePlus2 size={16} />Upload contract</Link></>}
       />
       <div className="content-pad">
         <div className="toolbar">
-          <div className="search-box"><Search size={16} /><input name="ledger-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索合同编号 / 对方公司 / 项目名" /></div>
+          <div className="search-box"><Search size={16} /><input name="ledger-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search contract no. / counterparty / project" /></div>
           <FilterChip
-            label="部门"
-            allLabel="部门：全部"
+            label="Department"
+            allLabel="Department: All"
             options={departmentFilterOptions}
             selected={departments}
             onChange={setDepartments}
           />
           <FilterChip
-            label="状态"
-            allLabel="状态：全部"
+            label="Status"
+            allLabel="Status: All"
             options={statusFilterOptions}
             selected={statuses}
             onChange={setStatuses}
           />
           <FilterChip
-            label="年份"
-            allLabel="年份：全部"
+            label="Year"
+            allLabel="Year: All"
             options={yearFilterOptions}
             selected={years}
             onChange={setYears}
           />
-          <span className="toolbar-count">显示 {data.length === 0 ? 0 : 1}–{data.length} / {contractResult.total}</span>
+          <span className="toolbar-count">Showing {data.length === 0 ? 0 : 1}–{data.length} / {contractResult.total}</span>
           <div className="column-config-wrap">
-            <Button icon={<Columns3 size={16} />} onClick={() => setColumnMenuOpen((open) => !open)}>列配置</Button>
+            <Button icon={<Columns3 size={16} />} onClick={() => setColumnMenuOpen((open) => !open)}>Columns</Button>
             {columnMenuOpen ? (
-              <div className="column-config-menu" role="menu" aria-label="列配置">
+              <div className="column-config-menu" role="menu" aria-label="Columns">
                 {menuColumns.map((column) => {
                   const columnIndex = visibleColumns.indexOf(column.key);
                   const isVisible = columnIndex >= 0;
@@ -323,10 +323,10 @@ export function LedgerPage() {
                         <span>{column.label}</span>
                       </label>
                       <div className="column-order-controls">
-                        <button type="button" aria-label={`上移 ${column.label}`} disabled={!isVisible || isFixedFirstColumn || columnIndex <= 1} onClick={() => moveColumn(column.key, -1)}>
+                        <button type="button" aria-label={`Move ${column.label} up`} disabled={!isVisible || isFixedFirstColumn || columnIndex <= 1} onClick={() => moveColumn(column.key, -1)}>
                           <ChevronUp size={14} aria-hidden="true" />
                         </button>
-                        <button type="button" aria-label={`下移 ${column.label}`} disabled={!isVisible || isFixedFirstColumn || columnIndex === visibleColumns.length - 1} onClick={() => moveColumn(column.key, 1)}>
+                        <button type="button" aria-label={`Move ${column.label} down`} disabled={!isVisible || isFixedFirstColumn || columnIndex === visibleColumns.length - 1} onClick={() => moveColumn(column.key, 1)}>
                           <ChevronDown size={14} aria-hidden="true" />
                         </button>
                       </div>
@@ -338,19 +338,19 @@ export function LedgerPage() {
           </div>
         </div>
         {selectedVisibleIds.length > 0 ? (
-          <div className="bulk-bar" role="region" aria-label="批量操作">
-            <strong>已选 {selectedVisibleIds.length} 项</strong>
+          <div className="bulk-bar" role="region" aria-label="Bulk actions">
+            <strong>{selectedVisibleIds.length} selected</strong>
             <div>
-              <Button icon={<Download size={15} />} loading={isBatchExporting} onClick={() => void exportSelected()}>导出所选</Button>
-              <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => setPendingBulkDeleteIds([...selectedVisibleIds])}>删除所选</Button>
-              <Button onClick={() => setSelectedIds([])}>取消选择</Button>
+              <Button icon={<Download size={15} />} loading={isBatchExporting} onClick={() => void exportSelected()}>Export selected</Button>
+              <Button variant="danger" icon={<Trash2 size={15} />} onClick={() => setPendingBulkDeleteIds([...selectedVisibleIds])}>Delete selected</Button>
+              <Button onClick={() => setSelectedIds([])}>Clear selection</Button>
             </div>
           </div>
         ) : null}
         <div
           className="ledger-top-scrollbar"
           role="scrollbar"
-          aria-label="台账横向滚动条"
+          aria-label="Ledger horizontal scrollbar"
           aria-controls="ledger-table-scroll"
           aria-orientation="horizontal"
           aria-valuemin={0}
@@ -366,15 +366,15 @@ export function LedgerPage() {
           className={`table-card ${useVirtualRows ? "table-card-virtual" : ""}`}
           ref={tableScrollRef}
           role={useVirtualRows ? "region" : undefined}
-          aria-label={useVirtualRows ? "台账表格虚拟滚动区域" : undefined}
+          aria-label={useVirtualRows ? "Ledger table virtual scroll area" : undefined}
           onScroll={syncTopScrollFromTable}
         >
           {isLoading ? <div className="skeleton-list" /> : isError ? (
-            <ErrorState text={`加载失败：${getErrorMessage(error)}`} onRetry={() => void refetch()} retrying={isFetching} />
+            <ErrorState text={`Failed to load: ${getErrorMessage(error)}`} onRetry={() => void refetch()} retrying={isFetching} />
           ) : data.length === 0 ? (
             <EmptyState
-              text={hasActiveFilters ? "没有匹配的合同，试试调整筛选" : "还没有合同，点「上传合同」开始登记"}
-              action={hasActiveFilters ? <Button onClick={clearFilters}>清除筛选</Button> : <Link to="/upload" className="button button-primary"><FilePlus2 size={16} />上传合同</Link>}
+              text={hasActiveFilters ? "No matching contracts; try adjusting the filters" : "No contracts yet — click 'Upload contract' to start"}
+              action={hasActiveFilters ? <Button onClick={clearFilters}>Clear filters</Button> : <Link to="/upload" className="button button-primary"><FilePlus2 size={16} />Upload contract</Link>}
             />
           ) : (
             <table className="data-table ledger-table">
@@ -395,8 +395,8 @@ export function LedgerPage() {
                 </tr>
                 <tr>
                   <th className="select-cell">
-                    <span className="sr-only">选择当前页</span>
-                    <input type="checkbox" aria-label="选择当前页" checked={allVisibleSelected} onChange={toggleCurrentPageSelection} />
+                    <span className="sr-only">Select current page</span>
+                    <input type="checkbox" aria-label="Select current page" checked={allVisibleSelected} onChange={toggleCurrentPageSelection} />
                   </th>
                   {activeColumns.map((column) => (
                     <th key={column.key} className={column.className}>
@@ -412,7 +412,7 @@ export function LedgerPage() {
                       ) : column.label}
                     </th>
                   ))}
-                  <th className="operation-header" aria-label="操作"><span className="sr-only">操作</span></th>
+                  <th className="operation-header" aria-label="Actions"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -465,10 +465,10 @@ export function LedgerPage() {
       ) : null}
       {pendingDeleteId ? (
         <ConfirmModal
-          title="删除合同？"
-          body={`将删除合同 ${pendingDeleteId} 及其存档 PDF，不可恢复。`}
-          cancelLabel="取消"
-          actionLabel="删除"
+          title="Delete contract?"
+          body={`This will delete contract ${pendingDeleteId} and its archived PDF. This cannot be undone.`}
+          cancelLabel="Cancel"
+          actionLabel="Delete"
           actionVariant="danger"
           loading={isDeleting}
           onCancel={() => setPendingDeleteId(null)}
@@ -477,10 +477,10 @@ export function LedgerPage() {
       ) : null}
       {pendingBulkDeleteIds ? (
         <ConfirmModal
-          title="删除所选合同？"
-          body={`将删除选中的 ${pendingBulkDeleteIds.length} 份合同及其存档 PDF，不可恢复。`}
-          cancelLabel="取消"
-          actionLabel="删除所选"
+          title="Delete selected contracts?"
+          body={`This will delete the ${pendingBulkDeleteIds.length} selected contracts and their archived PDFs. This cannot be undone.`}
+          cancelLabel="Cancel"
+          actionLabel="Delete selected"
           actionVariant="danger"
           loading={isBulkDeleting}
           onCancel={() => setPendingBulkDeleteIds(null)}
@@ -492,12 +492,12 @@ export function LedgerPage() {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "未知错误";
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
 function getSaveErrorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 409) {
-    return "该合同已被他处修改，请刷新后重试";
+    return "This contract was modified elsewhere; refresh and retry";
   }
   return getErrorMessage(error);
 }
@@ -522,8 +522,8 @@ const departmentFilterOptions = [
 ];
 
 const statusFilterOptions = [
-  { value: "active", label: "生效中" },
-  { value: "expired", label: "已到期" }
+  { value: "active", label: "Active" },
+  { value: "expired", label: "Expired" }
 ];
 
 const yearFilterOptions = [
@@ -579,7 +579,7 @@ function FilterChip({
       <button
         type="button"
         className={`chip filter-chip ${selected.length > 0 ? "active" : ""}`}
-        aria-label={`${label}筛选`}
+        aria-label={`${label} filter`}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
@@ -587,10 +587,10 @@ function FilterChip({
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="filter-chip-menu" role="menu" aria-label={`${label}筛选选项`}>
+        <div className="filter-chip-menu" role="menu" aria-label={`${label} filter options`}>
           <label className="filter-chip-option">
             <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])} />
-            <span>全部</span>
+            <span>All</span>
           </label>
           {options.map((option) => (
             <label className="filter-chip-option" key={option.value}>
@@ -607,9 +607,9 @@ function FilterChip({
 function getFilterChipLabel(label: string, allLabel: string, options: FilterOption[], selected: string[]) {
   if (selected.length === 0) return allLabel;
   if (selected.length === 1) {
-    return `${label}：${options.find((option) => option.value === selected[0])?.label ?? selected[0]}`;
+    return `${label}: ${options.find((option) => option.value === selected[0])?.label ?? selected[0]}`;
   }
-  return `${label}：${selected.length} 项`;
+  return `${label}: ${selected.length} selected`;
 }
 
 function parseFilterValues(value: string | null, fallback: string[] = []) {
@@ -661,19 +661,19 @@ function LedgerRow({
       className={isSelected ? "row-selected" : undefined}
       data-contract-row="true"
       tabIndex={0}
-      aria-label={`合同 ${contract.contract_id} ${contract.counterparty}`}
+      aria-label={`Contract ${contract.contract_id} ${contract.counterparty}`}
       onClick={onOpen}
       onKeyDown={(event) => onKeyDown(event, contract.contract_id)}
       onContextMenu={onContextMenu}
     >
       <td className="select-cell" onClick={(event) => event.stopPropagation()}>
-        <input type="checkbox" aria-label={`选择 ${contract.contract_id}`} checked={isSelected} onChange={onToggleSelection} />
+        <input type="checkbox" aria-label={`Select ${contract.contract_id}`} checked={isSelected} onChange={onToggleSelection} />
       </td>
       {activeColumns.map((column) => <td key={column.key} className={column.className}>{column.render(contract)}</td>)}
       <td className="row-more">
         <button
-          aria-label={`更多操作 ${contract.contract_id}`}
-          title="更多操作"
+          aria-label={`More actions ${contract.contract_id}`}
+          title="More actions"
           onClick={onOpenMenu}
         >
           <MoreHorizontal size={18} />
@@ -729,8 +729,8 @@ function getNextSort(currentSort: string | undefined, columnKey: string) {
 }
 
 function getSortLabel(label: string, currentSort: string | undefined, columnKey: string) {
-  if (getSortColumn(currentSort) !== columnKey) return `${label} 排序`;
-  return getSortDirection(currentSort) === "asc" ? `${label} 升序` : `${label} 降序`;
+  if (getSortColumn(currentSort) !== columnKey) return `Sort by ${label}`;
+  return getSortDirection(currentSort) === "asc" ? `${label} ascending` : `${label} descending`;
 }
 
 function SortIndicator({ sort, columnKey }: { sort: string | undefined; columnKey: string }) {
@@ -764,36 +764,36 @@ interface LedgerColumn {
 }
 
 const ledgerGroupLabels: Record<LedgerColumnGroup, string> = {
-  key: "主键",
-  basic: "基本信息",
-  amount: "金额",
-  owner: "归口",
-  date: "日期",
-  status: "状态"
+  key: "Key",
+  basic: "Basic info",
+  amount: "Amount",
+  owner: "Owner",
+  date: "Date",
+  status: "Status"
 };
 
 const ledgerColumns: LedgerColumn[] = [
-  { key: "contract_id", label: "合同编号", group: "key", className: "mono sticky-cell", sortable: true, render: (contract) => contract.contract_id },
-  { key: "counterparty", label: "对方公司", group: "basic", sortable: true, render: (contract) => contract.counterparty },
-  { key: "project_name", label: "项目名称", group: "basic", render: (contract) => <span title={contract.project_name}>{contract.project_name}</span> },
-  { key: "contract_type", label: "合同版本", group: "basic", render: (contract) => contract.contract_type },
-  { key: "file_no", label: "存档编号", group: "basic", className: "mono", render: (contract) => contract.file_no },
-  { key: "file_name", label: "文件名", group: "basic", render: (contract) => <span title={contract.file_name}>{contract.file_name}</span> },
-  { key: "amount", label: "合同金额", group: "amount", className: "mono number", sortable: true, sortLabel: "金额", render: (contract) => money(contract.amount, contract.currency) },
-  { key: "currency", label: "币种", group: "amount", className: "mono", render: (contract) => contract.currency },
-  { key: "term_months", label: "合同期", group: "amount", className: "mono", render: (contract) => formatTerm(contract.term_months) },
-  { key: "yearly_amount", label: "年均价", group: "amount", className: "mono number", render: (contract) => (contract.yearly_amount != null ? money(contract.yearly_amount, contract.currency) : "—") },
-  { key: "petitioner", label: "申请人", group: "owner", render: (contract) => contract.petitioner },
-  { key: "petition_date", label: "登记日期", group: "date", className: "mono", render: (contract) => dash(contract.petition_date) },
-  { key: "effective_date", label: "生效日", group: "date", className: "mono", sortable: true, render: (contract) => dash(contract.effective_date) },
-  { key: "expiration_date", label: "到期日", group: "date", className: "mono", render: (contract) => dash(contract.expiration_date) },
-  { key: "status", label: "状态", group: "status", render: (contract) => <BusinessStatusTag status={contract.status} /> }
+  { key: "contract_id", label: "Contract No.", group: "key", className: "mono sticky-cell", sortable: true, render: (contract) => contract.contract_id },
+  { key: "counterparty", label: "Counterparty", group: "basic", sortable: true, render: (contract) => contract.counterparty },
+  { key: "project_name", label: "Project Name", group: "basic", render: (contract) => <span title={contract.project_name}>{contract.project_name}</span> },
+  { key: "contract_type", label: "Contract Version", group: "basic", render: (contract) => contract.contract_type },
+  { key: "file_no", label: "File No.", group: "basic", className: "mono", render: (contract) => contract.file_no },
+  { key: "file_name", label: "File Name", group: "basic", render: (contract) => <span title={contract.file_name}>{contract.file_name}</span> },
+  { key: "amount", label: "Contract Amount", group: "amount", className: "mono number", sortable: true, sortLabel: "Amount", render: (contract) => money(contract.amount, contract.currency) },
+  { key: "currency", label: "Currency", group: "amount", className: "mono", render: (contract) => contract.currency },
+  { key: "term_months", label: "Term", group: "amount", className: "mono", render: (contract) => formatTerm(contract.term_months) },
+  { key: "yearly_amount", label: "Annualized", group: "amount", className: "mono number", render: (contract) => (contract.yearly_amount != null ? money(contract.yearly_amount, contract.currency) : "—") },
+  { key: "petitioner", label: "Petitioner", group: "owner", render: (contract) => contract.petitioner },
+  { key: "petition_date", label: "Registered Date", group: "date", className: "mono", render: (contract) => dash(contract.petition_date) },
+  { key: "effective_date", label: "Effective Date", group: "date", className: "mono", sortable: true, render: (contract) => dash(contract.effective_date) },
+  { key: "expiration_date", label: "Expiration Date", group: "date", className: "mono", render: (contract) => dash(contract.expiration_date) },
+  { key: "status", label: "Status", group: "status", render: (contract) => <BusinessStatusTag status={contract.status} /> }
 ];
 
 function formatTerm(termMonths: number | null): string {
   if (termMonths == null) return "—";
-  if (termMonths === 0) return "一次性";
-  return `${termMonths} 个月`;
+  if (termMonths === 0) return "One-time";
+  return `${termMonths} months`;
 }
 
 function getOrderedColumns(columnKeys: string[]) {
@@ -879,16 +879,16 @@ function ContextMenu({
   returnState: LedgerReturnState;
 }) {
   return (
-    <div className="menu-popover" role="menu" aria-label={`行操作 ${contractId}`} style={{ left: position.x, top: position.y }}>
+    <div className="menu-popover" role="menu" aria-label={`Row actions ${contractId}`} style={{ left: position.x, top: position.y }}>
       <strong className="mono">{contractId}</strong>
-      <Link to={`/contracts/${contractId}`} state={returnState}><Eye size={14} />查看详情</Link>
-      <button onClick={onEdit}><Pencil size={14} />编辑</button>
-      <span className="menu-group-label"><Download size={14} />下载 PDF</span>
-      <button disabled={!hasArchive} title={hasArchive ? undefined : "无存档文件"} onClick={onDownloadFull}>整份</button>
-      <button disabled={!hasArchive} title={hasArchive ? undefined : "无存档文件"} onClick={onDownloadContract}>仅合同</button>
-      <button onClick={onCopy}><Copy size={14} />复制编号</button>
-      <button className="danger-menu" onClick={onDelete}><Trash2 size={14} />删除</button>
-      <button className="close-menu" aria-label="关闭菜单" onClick={onClose}><X size={14} /></button>
+      <Link to={`/contracts/${contractId}`} state={returnState}><Eye size={14} />View detail</Link>
+      <button onClick={onEdit}><Pencil size={14} />Edit</button>
+      <span className="menu-group-label"><Download size={14} />Download PDF</span>
+      <button disabled={!hasArchive} title={hasArchive ? undefined : "No archived file"} onClick={onDownloadFull}>Full</button>
+      <button disabled={!hasArchive} title={hasArchive ? undefined : "No archived file"} onClick={onDownloadContract}>Contract only</button>
+      <button onClick={onCopy}><Copy size={14} />Copy number</button>
+      <button className="danger-menu" onClick={onDelete}><Trash2 size={14} />Delete</button>
+      <button className="close-menu" aria-label="Close menu" onClick={onClose}><X size={14} /></button>
     </div>
   );
 }
@@ -989,8 +989,8 @@ export function EditDrawer({ contract, onClose, onDelete, onSave }: EditDrawerPr
 
   return (
     <div className="drawer-layer">
-      <button className="drawer-scrim" onClick={requestClose} aria-label="关闭抽屉" />
-      <aside className="drawer" aria-label={`编辑合同 ${contract.contract_id}`}>
+      <button className="drawer-scrim" onClick={requestClose} aria-label="Close drawer" />
+      <aside className="drawer" aria-label={`Edit contract ${contract.contract_id}`}>
         <header>
           <div>
             <div className="drawer-title-row">
@@ -999,47 +999,47 @@ export function EditDrawer({ contract, onClose, onDelete, onSave }: EditDrawerPr
             </div>
             <p>{contract.counterparty} · {contract.project_name}</p>
           </div>
-          <Button variant="icon" onClick={requestClose} icon={<X size={18} />} aria-label="关闭抽屉" />
+          <Button variant="icon" onClick={requestClose} icon={<X size={18} />} aria-label="Close drawer" />
         </header>
         <div className="form-sections">
-          <FormSection title="基本信息" rows={[
-            ["对方公司", "counterparty"],
-            ["项目名称", "project_name"],
-            ["部门", "department"],
-            ["申请人", "petitioner"],
-            ["登记日期", "petition_date"],
-            ["合同版本", "contract_type"]
+          <FormSection title="Basic info" rows={[
+            ["Counterparty", "counterparty"],
+            ["Project Name", "project_name"],
+            ["Department", "department"],
+            ["Petitioner", "petitioner"],
+            ["Registered Date", "petition_date"],
+            ["Contract Version", "contract_type"]
           ]} values={form} errors={errors} disabled={isSaving} onChange={updateField} />
-          <FormSection title="金额" rows={[
-            ["合同金额", "amount"],
-            ["币种", "currency"]
+          <FormSection title="Amount" rows={[
+            ["Amount", "amount"],
+            ["Currency", "currency"]
           ]} values={form} errors={errors} disabled={isSaving} onChange={updateField} />
-          <FormSection title="日期" rows={[
-            ["生效日", "effective_date"],
-            ["到期日", "expiration_date"]
+          <FormSection title="Date" rows={[
+            ["Effective Date", "effective_date"],
+            ["Expiration Date", "expiration_date"]
           ]} values={form} errors={errors} disabled={isSaving} onChange={updateField} />
-          <FormSection title="状态与备注" rows={[
-            ["业务状态", "status"]
+          <FormSection title="Status & remarks" rows={[
+            ["Business status", "status"]
           ]} values={form} errors={errors} disabled={isSaving} onChange={updateField} />
           <label className="field-block">
-            <span>备注</span>
+            <span>Remarks</span>
             <textarea name="brief_description" disabled={isSaving} value={form.brief_description} onChange={(event) => updateField("brief_description", event.target.value)} />
           </label>
         </div>
         <footer>
-          <Button variant="danger" disabled={isSaving} onClick={onDelete}>删除</Button>
+          <Button variant="danger" disabled={isSaving} onClick={onDelete}>Delete</Button>
           <div>
-            <Button disabled={isSaving} onClick={requestClose}>取消</Button>
-            <Button variant="primary" loading={isSaving} disabled={!isDirty} onClick={() => void save()}>保存修改</Button>
+            <Button disabled={isSaving} onClick={requestClose}>Cancel</Button>
+            <Button variant="primary" loading={isSaving} disabled={!isDirty} onClick={() => void save()}>Save changes</Button>
           </div>
         </footer>
       </aside>
       {confirmDiscard ? (
         <ConfirmModal
-          title="放弃修改？"
-          body="当前修改尚未保存，关闭后将丢失这些改动。"
-          cancelLabel="继续编辑"
-          actionLabel="放弃修改"
+          title="Discard changes?"
+          body="The current changes are unsaved; closing will lose them."
+          cancelLabel="Keep editing"
+          actionLabel="Discard changes"
           actionVariant="danger"
           onCancel={() => setConfirmDiscard(false)}
           onConfirm={onClose}
@@ -1071,13 +1071,13 @@ function validateContractForm(form: ContractFormValues): ContractFormErrors {
   const amount = Number(form.amount.trim());
 
   if (!form.counterparty.trim()) {
-    errors.counterparty = "此项必填";
+    errors.counterparty = "This field is required";
   }
   if (!form.amount.trim() || Number.isNaN(amount) || amount < 0) {
-    errors.amount = "请输入有效金额";
+    errors.amount = "Enter a valid amount";
   }
   if (form.effective_date && form.expiration_date && form.expiration_date < form.effective_date) {
-    errors.expiration_date = "到期日不能早于生效日";
+    errors.expiration_date = "Expiration date cannot be earlier than the effective date";
   }
 
   return errors;
@@ -1204,8 +1204,8 @@ function getSelectOptions(field: keyof ContractFormValues) {
       ];
     case "status":
       return [
-        { value: "active", label: "生效中" },
-        { value: "expired", label: "已到期" }
+        { value: "active", label: "Active" },
+        { value: "expired", label: "Expired" }
       ];
     default:
       return [];
@@ -1249,7 +1249,7 @@ export function ConfirmModal({
 
   return (
     <div className="modal-layer">
-      <button className="modal-scrim" onClick={onCancel} aria-label="关闭确认" />
+      <button className="modal-scrim" onClick={onCancel} aria-label="Close confirmation" />
       <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="ledger-confirm-title">
         <h2 id="ledger-confirm-title">{title}</h2>
         <p>{body}</p>

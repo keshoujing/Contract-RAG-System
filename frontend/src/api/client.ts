@@ -1,5 +1,5 @@
-import type { ConfigState, ConflictField, ContractRow, FeedbackPayload, FileNoRule, PageRole, ProcessingRow, QaConversationDetail, QaConversationSummary, QueryResponse, ResolveConflictPayload } from "./types";
-import { configState, conflicts, contracts, processingRows } from "./mockData";
+import type { ConfigState, ContractRow, FeedbackPayload, FileNoRule, PageRole, ProcessingRow, QaConversationDetail, QaConversationSummary, QueryResponse } from "./types";
+import { configState, contracts, processingRows } from "./mockData";
 
 export interface ContractListResult {
   data: ContractRow[];
@@ -250,7 +250,7 @@ export async function getIngestStatus(taskId: string): Promise<IngestStatusResul
         counterparty: "Owens Corning Composites",
         project_name: "UD Glass Fiber Reinforced Composite Procurement",
         department: "UD",
-        petitioner: "王立 Wang Li"
+        petitioner: "Wang Li"
       },
       _per_field_confidence: { project_name: 0.62 },
       _per_field_source_span: { project_name: "UD Glass Fiber..." }
@@ -315,7 +315,7 @@ export async function askQuestion(payload: {
     if (error instanceof ApiError && !isMissingLocalApi(error)) throw error;
     return {
       question: body.question,
-      answer: "本地预览模式下无法连接 RAG 服务。接入后这里会显示基于合同证据的回答。",
+      answer: "The RAG service is unavailable in local preview mode. Once connected, answers grounded in contract evidence will appear here.",
       evidence: []
     };
   }
@@ -344,7 +344,7 @@ export async function createQaConversation(): Promise<QaConversationSummary> {
     return await postJson<QaConversationSummary>("/qa/conversations");
   } catch {
     const now = new Date().toISOString();
-    return { conversation_id: `local-${Date.now()}`, title: "新会话", created_at: now, updated_at: now, message_count: 0 };
+    return { conversation_id: `local-${Date.now()}`, title: "New conversation", created_at: now, updated_at: now, message_count: 0 };
   }
 }
 
@@ -392,14 +392,14 @@ function createFallbackContract(contractId: string): ContractRow {
     yearly_amount: null,
     project_name: "UD Glass Fiber Reinforced Composite Procurement",
     contract_type: "Supply Agreement",
-    petitioner: "王立",
+    petitioner: "Wang Li",
     petition_date: "2026-04-12",
     file_no: contractId.replace(/\D/g, "").slice(-7) || "2026005",
     file_name: `${contractId}-signed.pdf`,
     effective_date: "2026-04-15",
     expiration_date: "2027-04-14",
     department: "UD",
-    brief_description: "由上传向导登记的合同审批页。",
+    brief_description: "Contract approval page registered by the upload wizard.",
     status: "active",
     pages: 14,
     size: "8.2 MB",
@@ -421,7 +421,7 @@ function isMissingLocalApi(error: ApiError) {
 }
 
 function buildLocalLedgerExport(rows: ContractRow[]) {
-  const headers = ["合同编号", "对方公司", "项目名称", "合同版本", "存档编号", "文件名", "金额", "币种", "申请人", "登记日期", "生效日", "到期日", "状态"];
+  const headers = ["Contract No.", "Counterparty", "Project Name", "Contract Version", "File No.", "File Name", "Amount", "Currency", "Petitioner", "Registered Date", "Effective Date", "Expiration Date", "Status"];
   const values = rows.map((contract) => [
     contract.contract_id,
     contract.counterparty,
@@ -466,27 +466,6 @@ trailer
 << /Root 1 0 R >>
 %%EOF`;
   return new Blob([pdf], { type: PDF_MIME });
-}
-
-export async function retryContractSync(contractId: string): Promise<void> {
-  try {
-    await postJson<unknown>(`/contracts/${encodeURIComponent(contractId)}/sync/retry`);
-  } catch {
-    await Promise.resolve();
-  }
-}
-
-export async function resolveConflict({ contractId, resolutions }: ResolveConflictPayload): Promise<void> {
-  await postJson<unknown>(`/contracts/${encodeURIComponent(contractId)}/resolve`, { resolutions });
-}
-
-export async function getConflicts(contractId: string): Promise<ConflictField[]> {
-  try {
-    return await getJson<ConflictField[]>(`/contracts/${encodeURIComponent(contractId)}/conflict`);
-  } catch (error) {
-    if (error instanceof ApiError && !isMissingLocalApi(error)) throw error;
-    return conflicts;
-  }
 }
 
 export async function getConfig(): Promise<ConfigState> {

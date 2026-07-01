@@ -5,7 +5,6 @@ import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ToastProvider } from "./components/ui/Toast";
 import { ContractDetailPage } from "./features/contracts/ContractDetailPage";
-import { ConflictPage } from "./features/conflicts/ConflictPage";
 import { LedgerPage } from "./features/ledger/LedgerPage";
 import { ProcessingPage } from "./features/processing/ProcessingPage";
 import { QuestionAnswerPage } from "./features/qa/QuestionAnswerPage";
@@ -37,7 +36,6 @@ export default function App({ initialPath }: AppProps) {
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/processing" element={<ProcessingPage />} />
-              <Route path="/conflicts/:id" element={<ConflictPage />} />
               <Route path="/contracts/:id" element={<ContractDetailPage />} />
             </Routes>
           </AppShell>

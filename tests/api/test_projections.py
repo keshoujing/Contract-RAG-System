@@ -25,7 +25,7 @@ def test_to_contract_row_derives_fields():
     contract = {
         "contract_id": "JSUS2026004", "counterparty": "OC", "amount": 147664.05,
         "currency": "USD", "project_name": "UD", "contract_type": "Supply",
-        "petitioner": "王立", "petition_date": "2026-04-12", "file_no": "2026004",
+        "petitioner": "Wang Li", "petition_date": "2026-04-12", "file_no": "2026004",
         "effective_date": "2026-04-15", "expiration_date": "2027-04-14",
         "department": "UD", "brief_description": "x", "status": "active",
         "page_count": 14, "created_at": "2026-04-12T09:22:00+00:00",
@@ -68,30 +68,16 @@ def test_to_contract_row_term_months_and_yearly():
     assert unset["yearly_amount"] is None
 
 
-def test_to_conflict_fields_adds_owner_and_suggested():
-    conflicts = [
-        {"field": "counterparty", "baseline": "A", "system": "A", "excel": "B"},
-        {"field": "effective_date", "baseline": "（空）", "system": "（空）", "excel": "2026-03-15"},
-    ]
-    out = pj.to_conflict_fields(conflicts)
-    by = {c["field"]: c for c in out}
-    assert by["counterparty"]["owner"] == "system"
-    assert by["counterparty"]["suggested"] == "system"
-    assert by["effective_date"]["owner"] == "human"
-    assert by["effective_date"]["suggested"] == "excel"
-
-
 def test_to_config_state():
     rules = {"default": {"prefix": ""}, "chinabuy": {"prefix": "CN"}}
-    cfg = pj.to_config_state(excel_enabled=False, file_no_rules=rules, year=2026)
-    assert cfg["excelEnabled"] is False
+    cfg = pj.to_config_state(file_no_rules=rules, year=2026)
     assert cfg["ragEnabled"] is False
     examples = {r["category"]: r["example"] for r in cfg["fileNoRules"]}
     assert examples["default"] == "2026001"
     assert examples["chinabuy"] == "CN2026001"
     assert cfg["contractVersions"] == []
-    assert pj.to_config_state(excel_enabled=False, file_no_rules=rules, year=2026,
-                              contract_versions=["采购合同"])["contractVersions"] == ["采购合同"]
+    assert pj.to_config_state(file_no_rules=rules, year=2026,
+                              contract_versions=["Purchase Contract"])["contractVersions"] == ["Purchase Contract"]
 
 
 def test_apply_contract_query_filters_and_sorts():

@@ -17,7 +17,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div className={`toast toast-${tone}`}>
         {tone === "error" ? <CircleX size={16} /> : <CheckCircle2 size={16} />}
         <span>{message}</span>
-        <button aria-label="关闭通知" onClick={() => sonnerToast.dismiss(id)}><X size={14} /></button>
+        <button aria-label="Dismiss notification" onClick={() => sonnerToast.dismiss(id)}><X size={14} /></button>
       </div>
     ), { duration: 4000 });
   }, []);

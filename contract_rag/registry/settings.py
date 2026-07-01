@@ -1,10 +1,4 @@
-"""User-settable runtime settings, persisted as a small key→JSON table.
-
-These are settings the *front end* changes at runtime (not dev config in
-config.yaml) — e.g. the File No. assignment rules (decision 15). Kept in SQLite
-so a setting survives restarts and the front end can read it back. Self-contained
-(owns its ``sync_settings`` table) to keep the Excel limb detachable.
-"""
+"""User-settable runtime settings persisted as key-value JSON in SQLite."""
 from __future__ import annotations
 
 import json
@@ -12,7 +6,7 @@ import json
 from contract_rag.storage.db import _now, connect
 
 _SCHEMA = """
-CREATE TABLE IF NOT EXISTS sync_settings (
+CREATE TABLE IF NOT EXISTS registry_settings (
     key        TEXT PRIMARY KEY,
     value_json TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -28,7 +22,9 @@ def init(db_path=None) -> None:
 def get_setting(key: str, default=None, db_path=None):
     init(db_path)
     with connect(db_path) as conn:
-        row = conn.execute("SELECT value_json FROM sync_settings WHERE key = ?", (key,)).fetchone()
+        row = conn.execute(
+            "SELECT value_json FROM registry_settings WHERE key = ?", (key,)
+        ).fetchone()
     return json.loads(row["value_json"]) if row else default
 
 
@@ -39,8 +35,10 @@ def set_setting(key: str, value, db_path=None) -> None:
     with connect(db_path) as conn:
         conn.execute(
             """
-            INSERT INTO sync_settings (key, value_json, updated_at) VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=excluded.updated_at
+            INSERT INTO registry_settings (key, value_json, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value_json=excluded.value_json,
+                updated_at=excluded.updated_at
             """,
             (key, payload, now),
         )

@@ -68,7 +68,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function D
       <button
         type="button"
         className="date-trigger"
-        aria-label={`打开${label}日历`}
+        aria-label={`Open ${label} calendar`}
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
@@ -76,7 +76,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function D
         <CalendarDays size={15} />
       </button>
       {open ? (
-        <div className="date-popover" role="dialog" aria-label={`${label}日期选择`}>
+        <div className="date-popover" role="dialog" aria-label={`${label} date picker`}>
           <DayPicker
             mode="single"
             selected={selectedDate}

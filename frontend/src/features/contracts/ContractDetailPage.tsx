@@ -66,7 +66,7 @@ export function ContractDetailPage() {
         const blob = await downloadContractFile(previewContract.contract_id);
         if (cancelled) return;
         if (typeof URL.createObjectURL !== "function") {
-          throw new Error("当前环境不支持在线预览");
+          throw new Error("Online preview is not supported in this environment");
         }
         objectUrl = URL.createObjectURL(blob);
         setPdfPreview({ status: "ready", url: objectUrl });
@@ -90,9 +90,9 @@ export function ContractDetailPage() {
   if (isLoading) {
     return (
       <>
-        <PageHeader title="合同详情" subtitle={`正在加载 ${id}`} actions={<Link className="button button-secondary" to={returnTo} state={returnState}><ArrowLeft size={15} />返回</Link>} />
+        <PageHeader title="Contract detail" subtitle={`Loading ${id}`} actions={<Link className="button button-secondary" to={returnTo} state={returnState}><ArrowLeft size={15} />Back</Link>} />
         <div className="content-pad detail-layout">
-          <Card className="pdf-viewer"><div className="skeleton-list" role="status" aria-label="正在加载合同详情" /></Card>
+          <Card className="pdf-viewer"><div className="skeleton-list" role="status" aria-label="Loading contract detail" /></Card>
           <Card className="detail-fields"><div className="skeleton-list" /></Card>
         </div>
       </>
@@ -102,10 +102,10 @@ export function ContractDetailPage() {
   if (isError) {
     return (
       <>
-        <PageHeader title="合同详情" subtitle={`${id} 加载失败`} actions={<Link className="button button-secondary" to={returnTo} state={returnState}><ArrowLeft size={15} />返回</Link>} />
+        <PageHeader title="Contract detail" subtitle={`${id} failed to load`} actions={<Link className="button button-secondary" to={returnTo} state={returnState}><ArrowLeft size={15} />Back</Link>} />
         <div className="content-pad">
           <Card>
-            <ErrorState text={`加载失败：${getErrorMessage(error)}`} onRetry={() => void refetch()} retrying={isFetching} />
+            <ErrorState text={`Failed to load: ${getErrorMessage(error)}`} onRetry={() => void refetch()} retrying={isFetching} />
           </Card>
         </div>
       </>
@@ -117,24 +117,24 @@ export function ContractDetailPage() {
 
   async function downloadPdf() {
     if (!detailContract.file_name) {
-      toast.error("无存档文件，无法下载 PDF");
+      toast.error("No archived file; cannot download PDF");
       return;
     }
     try {
       const blob = await downloadContractFile(detailContract.contract_id);
       downloadBlob(blob, detailContract.file_name || "signed.pdf");
-      toast.success(`已下载 ${detailContract.contract_id} signed.pdf`);
+      toast.success(`Downloaded ${detailContract.contract_id} signed.pdf`);
     } catch (downloadError) {
-      toast.error(`下载失败：${getErrorMessage(downloadError)}`);
+      toast.error(`Download failed: ${getErrorMessage(downloadError)}`);
     }
   }
 
   async function copyContractId() {
     try {
       await copyTextToClipboard(detailContract.contract_id);
-      toast.success(`已复制 ${detailContract.contract_id}`);
+      toast.success(`Copied ${detailContract.contract_id}`);
     } catch {
-      toast.error("复制失败，请手动复制编号");
+      toast.error("Copy failed; please copy the number manually");
     } finally {
       setDetailMenuOpen(false);
     }
@@ -145,15 +145,15 @@ export function ContractDetailPage() {
       const updatedContract = await patchContract(nextContract.contract_id, changes, nextContract);
       setSavedContract(updatedContract);
       setEditing(false);
-      toast.success(`已保存 ${updatedContract.contract_id}`);
+      toast.success(`Saved ${updatedContract.contract_id}`);
     } catch (saveError) {
-      toast.error(`保存失败：${getSaveErrorMessage(saveError)}`);
+      toast.error(`Failed to save: ${getSaveErrorMessage(saveError)}`);
     }
   }
 
   async function removeContract() {
     await deleteContract(detailContract.contract_id);
-    toast.success(`已删除 ${detailContract.contract_id}`);
+    toast.success(`Deleted ${detailContract.contract_id}`);
     navigate("/ledger");
   }
 
@@ -173,13 +173,13 @@ export function ContractDetailPage() {
         subtitle={`${detailContract.counterparty} · ${detailContract.project_name}`}
         actions={(
           <>
-            <Link className="button button-secondary" to={returnTo} state={returnState}><ArrowLeft size={15} />返回</Link>
-            <Button icon={<Download size={15} />} disabled={!detailContract.file_name} onClick={() => void downloadPdf()}>下载 PDF</Button>
-            <Button variant="primary" icon={<Pencil size={15} />} onClick={() => setEditing(true)}>编辑</Button>
+            <Link className="button button-secondary" to={returnTo} state={returnState}><ArrowLeft size={15} />Back</Link>
+            <Button icon={<Download size={15} />} disabled={!detailContract.file_name} onClick={() => void downloadPdf()}>Download PDF</Button>
+            <Button variant="primary" icon={<Pencil size={15} />} onClick={() => setEditing(true)}>Edit</Button>
             <div className="detail-menu-wrap">
               <Button
                 variant="icon"
-                aria-label="更多操作"
+                aria-label="More actions"
                 aria-expanded={detailMenuOpen}
                 aria-haspopup="menu"
                 icon={<MoreHorizontal size={17} />}
@@ -210,34 +210,34 @@ export function ContractDetailPage() {
       />
       <div className="content-pad detail-layout">
         <Card className="pdf-viewer">
-          <div className="pdf-toolbar">signed.pdf <span>{detailContract.pages} 页</span></div>
+          <div className="pdf-toolbar">signed.pdf <span>{detailContract.pages} pages</span></div>
           {pdfPreview.status === "ready" ? (
             <embed className="pdf-embed" title="signed.pdf" src={pdfPreview.url} type="application/pdf" />
           ) : pdfPreview.status === "loading" ? (
-            <div className="pdf-loading" role="status">正在加载 PDF…</div>
+            <div className="pdf-loading" role="status">Loading PDF…</div>
           ) : pdfPreview.status === "error" ? (
             <div className="pdf-error" role="alert">
-              <span>无法加载 PDF：{pdfPreview.error}</span>
-              <Button onClick={() => void downloadPdf()}>下载文件</Button>
+              <span>Could not load PDF: {pdfPreview.error}</span>
+              <Button onClick={() => void downloadPdf()}>Download file</Button>
             </div>
           ) : (
             <StaticPaperPreview contract={detailContract} />
           )}
         </Card>
         <Card className="detail-fields">
-          <div className="section-title">基本信息 <BusinessStatusTag status={detailContract.status} /></div>
-          <Info label="对方公司" value={detailContract.counterparty} />
-          <Info label="项目名称" value={detailContract.project_name} />
-          <Info label="部门" value={detailContract.department} />
-          <Info label="合同金额" value={money(detailContract.amount, detailContract.currency)} mono />
-          <Info label="申请日期" value={detailContract.petition_date} mono />
-          <Info label="生效日" value={dash(detailContract.effective_date)} mono />
-          <Info label="到期日" value={dash(detailContract.expiration_date)} mono />
-          <div className="section-title">存档信息</div>
-          <Info label="文件名" value={detailContract.file_name} />
-          <Info label="存档编号" value={detailContract.file_no} mono />
-          <Info label="页数 / 大小" value={`${detailContract.pages} 页 / ${detailContract.size}`} />
-          <Info label="存档时间" value={detailContract.archived_at} />
+          <div className="section-title">Basic info <BusinessStatusTag status={detailContract.status} /></div>
+          <Info label="Counterparty" value={detailContract.counterparty} />
+          <Info label="Project Name" value={detailContract.project_name} />
+          <Info label="Department" value={detailContract.department} />
+          <Info label="Amount" value={money(detailContract.amount, detailContract.currency)} mono />
+          <Info label="Petition Date" value={detailContract.petition_date} mono />
+          <Info label="Effective Date" value={dash(detailContract.effective_date)} mono />
+          <Info label="Expiration Date" value={dash(detailContract.expiration_date)} mono />
+          <div className="section-title">Archive info</div>
+          <Info label="File Name" value={detailContract.file_name} />
+          <Info label="File No." value={detailContract.file_no} mono />
+          <Info label="Pages / Size" value={`${detailContract.pages} pages / ${detailContract.size}`} />
+          <Info label="Archived at" value={detailContract.archived_at} />
         </Card>
       </div>
       {editing ? (
@@ -250,10 +250,10 @@ export function ContractDetailPage() {
       ) : null}
       {deletePending ? (
         <ConfirmModal
-          title="删除合同？"
-          body={`将删除合同 ${detailContract.contract_id} 及其存档 PDF，不可恢复。`}
-          cancelLabel="取消"
-          actionLabel="删除"
+          title="Delete contract?"
+          body={`This will delete contract ${detailContract.contract_id} and its archived PDF. This cannot be undone.`}
+          cancelLabel="Cancel"
+          actionLabel="Delete"
           actionVariant="danger"
           loading={isDeleting}
           onCancel={() => setDeletePending(false)}
@@ -304,24 +304,24 @@ function DetailActionMenu({
   onEdit: () => void;
 }) {
   return (
-    <div className="menu-popover detail-menu-popover" role="menu" aria-label={`详情操作 ${contract.contract_id}`}>
+    <div className="menu-popover detail-menu-popover" role="menu" aria-label={`Detail actions ${contract.contract_id}`}>
       <strong className="mono">{contract.contract_id}</strong>
-      <button onClick={onEdit}><Pencil size={14} />编辑</button>
-      <button disabled={!contract.file_name} title={contract.file_name ? undefined : "无存档文件"} onClick={onDownload}><Download size={14} />下载 PDF</button>
-      <button onClick={onCopy}><Copy size={14} />复制编号</button>
-      <button className="danger-menu" onClick={onDelete}><Trash2 size={14} />删除</button>
-      <button className="close-menu" aria-label="关闭菜单" onClick={onClose}><X size={14} /></button>
+      <button onClick={onEdit}><Pencil size={14} />Edit</button>
+      <button disabled={!contract.file_name} title={contract.file_name ? undefined : "No archived file"} onClick={onDownload}><Download size={14} />Download PDF</button>
+      <button onClick={onCopy}><Copy size={14} />Copy number</button>
+      <button className="danger-menu" onClick={onDelete}><Trash2 size={14} />Delete</button>
+      <button className="close-menu" aria-label="Close menu" onClick={onClose}><X size={14} /></button>
     </div>
   );
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "未知错误";
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
 function getSaveErrorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 409) {
-    return "该合同已被他处修改，请刷新后重试";
+    return "This contract was modified elsewhere; refresh and retry";
   }
   return getErrorMessage(error);
 }

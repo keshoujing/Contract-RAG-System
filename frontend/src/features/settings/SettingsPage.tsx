@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { DatabaseZap, FileCog, FolderArchive, Info, Save, Settings2 } from "lucide-react";
+import { DatabaseZap, FolderArchive, Save, Settings2 } from "lucide-react";
 import { patchConfig, updateContractVersions, updateFileNoRules } from "../../api/client";
 import { useConfig } from "../../api/hooks";
 import type { ConfigState, FileNoRule } from "../../api/types";
@@ -13,10 +13,7 @@ export function SettingsPage() {
   const { data, isLoading } = useConfig();
   const toast = useToast();
   const [rag, setRag] = useState(data?.ragEnabled ?? false);
-  const [excel, setExcel] = useState(data?.excelEnabled ?? true);
-  const [backup, setBackup] = useState(true);
-  const [lock, setLock] = useState(true);
-  const [confirming, setConfirming] = useState<"rag" | "excel" | null>(null);
+  const [confirming, setConfirming] = useState<"rag" | null>(null);
   const [ruleDrafts, setRuleDrafts] = useState<FileNoRule[]>([]);
   const [ruleError, setRuleError] = useState("");
   const [savingRules, setSavingRules] = useState(false);
@@ -27,32 +24,21 @@ export function SettingsPage() {
   useEffect(() => {
     if (!data) return;
     setRag(data.ragEnabled);
-    setExcel(data.excelEnabled);
-    setBackup(data.backupEnabled);
-    setLock(data.lockCheckEnabled);
     setRuleDrafts(data.fileNoRules);
     setVersionDrafts(data.contractVersions ?? []);
   }, [data]);
 
-  function requestToggle(kind: "rag" | "excel", next: boolean) {
+  function requestToggle(kind: "rag", next: boolean) {
     if (!next) {
       setConfirming(kind);
       return;
     }
-    if (kind === "rag") {
-      void saveConfig({ ragEnabled: true });
-    }
-    if (kind === "excel") {
-      void saveConfig({ excelEnabled: true });
-    }
+    void saveConfig({ ragEnabled: true });
   }
 
   function confirmDisable() {
     if (confirming === "rag") {
       void saveConfig({ ragEnabled: false });
-    }
-    if (confirming === "excel") {
-      void saveConfig({ excelEnabled: false });
     }
     setConfirming(null);
   }
@@ -60,9 +46,6 @@ export function SettingsPage() {
   function currentConfig(): ConfigState {
     return {
       ragEnabled: rag,
-      excelEnabled: excel,
-      backupEnabled: backup,
-      lockCheckEnabled: lock,
       fileNoRules: ruleDrafts,
       contractVersions: versionDrafts
     };
@@ -70,9 +53,6 @@ export function SettingsPage() {
 
   function applyConfig(config: ConfigState) {
     setRag(config.ragEnabled);
-    setExcel(config.excelEnabled);
-    setBackup(config.backupEnabled);
-    setLock(config.lockCheckEnabled);
     setRuleDrafts(config.fileNoRules);
     setVersionDrafts(config.contractVersions ?? []);
     queryClient.setQueryData<ConfigState>(["config"], config);
@@ -87,7 +67,7 @@ export function SettingsPage() {
       applyConfig(savedConfig);
     } catch (error) {
       applyConfig(previous);
-      toast.error(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+      toast.error(`Failed to save: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 
@@ -98,7 +78,7 @@ export function SettingsPage() {
 
   async function saveFileNoRules() {
     if (hasDuplicatePrefix(ruleDrafts)) {
-      setRuleError("前缀不能重复");
+      setRuleError("Prefixes must be unique");
       return;
     }
     setSavingRules(true);
@@ -106,10 +86,10 @@ export function SettingsPage() {
       const savedRules = await updateFileNoRules(ruleDrafts);
       setRuleDrafts(savedRules);
       queryClient.setQueryData<ConfigState>(["config"], (current) => ({ ...(current ?? data), fileNoRules: savedRules }) as ConfigState);
-      toast.success("已保存存档编号规则");
+      toast.success("File-No. rules saved");
     } catch (error) {
       setRuleDrafts(data?.fileNoRules ?? []);
-      toast.error(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+      toast.error(`Failed to save: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setSavingRules(false);
     }
@@ -128,10 +108,10 @@ export function SettingsPage() {
       const saved = await updateContractVersions(versionDrafts);
       setVersionDrafts(saved);
       queryClient.setQueryData<ConfigState>(["config"], (current) => ({ ...(current ?? data), contractVersions: saved }) as ConfigState);
-      toast.success("已保存合同版本");
+      toast.success("Contract versions saved");
     } catch (error) {
       setVersionDrafts(data?.contractVersions ?? []);
-      toast.error(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+      toast.error(`Failed to save: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setSavingVersions(false);
     }
@@ -142,9 +122,9 @@ export function SettingsPage() {
   if (isLoading && !data) {
     return (
       <>
-        <PageHeader title="设置" subtitle="运行模式、台账存储与模型配置" />
+        <PageHeader title="Settings" subtitle="Runtime mode, registry storage, and model config" />
         <div className="content-pad settings-page">
-          <div className="settings-skeleton" role="status" aria-label="正在加载设置">
+          <div className="settings-skeleton" role="status" aria-label="Loading settings">
             <div className="settings-skeleton-grid">
               <Card><div className="skeleton-list" /></Card>
               <Card><div className="skeleton-list" /></Card>
@@ -158,40 +138,38 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="设置" subtitle="运行模式、台账存储与模型配置" />
+      <PageHeader title="Settings" subtitle="Runtime mode, registry storage, and model config" />
       <div className="content-pad settings-page">
         <section className="settings-section">
-          <h2>运行模式</h2>
+          <h2>Runtime mode</h2>
           <div className="settings-grid">
-            <SettingToggle icon={<DatabaseZap />} title="RAG 检索模块" badge={rag ? "开启中" : "已关闭"} checked={rag} onChange={(next) => requestToggle("rag", next)} description="关闭后为「纯录入模式」：只抽取审批页字段、整份 PDF 存档、写入台账。不解析正文、不分块、不向量化，最快最省。" />
-            <SettingToggle icon={<FileCog />} title="Excel 同步" badge={excel ? "开启中" : "已关闭"} checked={excel} onChange={(next) => requestToggle("excel", next)} description="把数据库的合同数据单向同步进 Excel 台账。关闭后系统仅写入数据库，不再同步到 Excel。" note="同步是独立下游：关闭不影响合同入库与检索；「入库与同步」页该列会整列变灰「已禁用 ⊘」。" />
+            <SettingToggle icon={<DatabaseZap />} title="RAG module" badge={rag ? "On" : "Off"} checked={rag} onChange={(next) => requestToggle("rag", next)} description="When off, runs in 'entry-only mode': it only extracts approval-page fields, archives the full PDF, and writes the ledger. No body parsing, chunking, or vectorization — fastest and cheapest." />
           </div>
         </section>
         <div className="settings-grid">
           <Card className="settings-card">
-            <h3><FolderArchive size={18} />台账存储</h3>
-            <ReadOnlyRow label="后端模式" value="SQLite 真源 + Excel 同步下游" />
-            <ReadOnlyRow label="台账文件" value="./storage/合同台账.xlsx" action="更改" />
-            <ToggleRow label="写前自动备份" checked={backup} onChange={(next) => void saveConfig({ backupEnabled: next })} />
-            <ToggleRow label="打开占用检测" checked={lock} onChange={(next) => void saveConfig({ lockCheckEnabled: next })} />
+            <h3><FolderArchive size={18} />Ledger storage</h3>
+            <ReadOnlyRow label="Backend mode" value="SQLite source of truth" />
+            <ReadOnlyRow label="Archive root" value="./storage/{contract_id}/" />
+            <ReadOnlyRow label="Spreadsheet export" value="On demand from the ledger page" />
           </Card>
           <Card className="settings-card">
-            <h3><Settings2 size={18} />AI 模型</h3>
-            <ReadOnlyRow label="审批页 OCR" value="gemini-3-flash-preview" />
-            <ReadOnlyRow label="字段抽取" value="强制 JSON Schema 输出" />
-            <ReadOnlyRow label="正文 RAG" value="RAG 关闭时不运行" />
+            <h3><Settings2 size={18} />AI models</h3>
+            <ReadOnlyRow label="Approval-page OCR" value="gemini-3-flash-preview" />
+            <ReadOnlyRow label="Field extraction" value="Forced JSON-Schema output" />
+            <ReadOnlyRow label="Body RAG" value="Not run when RAG is off" />
           </Card>
         </div>
         <Card className="settings-card">
           <div className="settings-card-header">
             <div>
-              <h3>存档编号规则</h3>
-              <p>按分类设置编号前缀，系统按年份与分类自动生成连续号。</p>
+              <h3>File-No. rules</h3>
+              <p>Set a number prefix per category; the system auto-generates a running sequence by year and category.</p>
             </div>
-            <Button variant="primary" icon={<Save size={15} />} loading={savingRules} onClick={saveFileNoRules}>保存编号规则</Button>
+            <Button variant="primary" icon={<Save size={15} />} loading={savingRules} onClick={saveFileNoRules}>Save File-No. rules</Button>
           </div>
           <table className="data-table compact-table">
-            <thead><tr><th>分类</th><th>前缀</th><th>示例</th></tr></thead>
+            <thead><tr><th>Category</th><th>Prefix</th><th>Example</th></tr></thead>
             <tbody>
               {ruleDrafts.map((rule) => {
                 const isDuplicated = duplicatedPrefixes.has(rule.prefix.trim());
@@ -200,7 +178,7 @@ export function SettingsPage() {
                     <td className="mono">{rule.category}</td>
                     <td>
                       <label className="file-rule-prefix">
-                        <span>{rule.category} 前缀</span>
+                        <span>{rule.category} prefix</span>
                         <input
                           className="input mono"
                           value={rule.prefix}
@@ -220,10 +198,10 @@ export function SettingsPage() {
         <Card className="settings-card">
           <div className="settings-card-header">
             <div>
-              <h3>合同版本</h3>
-              <p>管理合同版本类型列表，用于台账「合同版本」字段的可选项。</p>
+              <h3>Contract versions</h3>
+              <p>Manage the list of contract version types, used as options for the ledger's Contract Version field.</p>
             </div>
-            <Button variant="primary" icon={<Save size={15} />} loading={savingVersions} onClick={saveContractVersions}>保存合同版本</Button>
+            <Button variant="primary" icon={<Save size={15} />} loading={savingVersions} onClick={saveContractVersions}>Save contract versions</Button>
           </div>
           <ul className="version-list">
             {versionDrafts.map((v) => (
@@ -231,7 +209,7 @@ export function SettingsPage() {
                 <span>{v}</span>
                 <button
                   className="version-remove"
-                  aria-label={`删除 ${v}`}
+                  aria-label={`Delete ${v}`}
                   onClick={() => setVersionDrafts(versionDrafts.filter((item) => item !== v))}
                 >×</button>
               </li>
@@ -239,17 +217,17 @@ export function SettingsPage() {
           </ul>
           <div className="version-add-row">
             <label className="file-rule-prefix">
-              <span>新增合同版本</span>
+              <span>Add contract version</span>
               <input
                 className="input"
-                aria-label="新增合同版本"
+                aria-label="Add contract version"
                 value={versionInput}
                 onChange={(event) => setVersionInput(event.target.value)}
                 onKeyDown={(event) => { if (event.key === "Enter") addVersion(); }}
-                placeholder="输入版本名称"
+                placeholder="Enter a version name"
               />
             </label>
-            <Button onClick={addVersion}>添加版本</Button>
+            <Button onClick={addVersion}>Add version</Button>
           </div>
         </Card>
       </div>
@@ -257,15 +235,13 @@ export function SettingsPage() {
         <div className="modal-layer">
           <div className="modal-scrim" onClick={() => setConfirming(null)} />
           <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="settings-confirm-title">
-            <h2 id="settings-confirm-title">{confirming === "excel" ? "关闭 Excel 同步？" : "关闭 RAG 检索模块？"}</h2>
+            <h2 id="settings-confirm-title">Disable RAG module?</h2>
             <p>
-              {confirming === "excel"
-                ? "关闭后系统仅写入数据库，不再同步到 Excel；「入库与同步」页该列将整列变灰「已禁用 ⊘」。是否关闭？"
-                : "关闭后为纯录入模式，仅抽取审批页字段并存档，不解析正文、不向量化。已入库数据不受影响。是否关闭？"}
+              When off, it runs in entry-only mode: it only extracts approval-page fields and archives them, with no body parsing or vectorization. Already-ingested data is unaffected. Disable it?
             </p>
             <footer>
-              <Button onClick={() => setConfirming(null)}>取消</Button>
-              <Button variant="danger" onClick={confirmDisable}>确认关闭</Button>
+              <Button onClick={() => setConfirming(null)}>Cancel</Button>
+              <Button variant="danger" onClick={confirmDisable}>Confirm disable</Button>
             </footer>
           </section>
         </div>
@@ -287,7 +263,7 @@ function hasDuplicatePrefix(rules: FileNoRule[]) {
   return getDuplicatedPrefixes(rules).size > 0;
 }
 
-function SettingToggle({ icon, title, badge, description, note, checked, onChange }: { icon: React.ReactNode; title: string; badge: string; description: string; note?: string; checked: boolean; onChange: (value: boolean) => void }) {
+function SettingToggle({ icon, title, badge, description, checked, onChange }: { icon: React.ReactNode; title: string; badge: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
     <Card className="setting-toggle">
       <div className="setting-main">
@@ -295,15 +271,10 @@ function SettingToggle({ icon, title, badge, description, note, checked, onChang
         <div><h3>{title} <span className={`badge ${checked ? "badge-on" : "badge-off"}`}>{badge}</span></h3><p>{description}</p></div>
         <button className={`switch ${checked ? "on" : ""}`} onClick={() => onChange(!checked)} aria-label={title}><span /></button>
       </div>
-      {note ? <p className="setting-note"><Info size={14} />{note}</p> : null}
     </Card>
   );
 }
 
 function ReadOnlyRow({ label, value, action }: { label: string; value: string; action?: string }) {
   return <div className="settings-row"><span>{label}</span><strong>{value}</strong>{action ? <button>{action}</button> : null}</div>;
-}
-
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <div className="settings-row"><span>{label}</span><button className={`switch mini ${checked ? "on" : ""}`} onClick={() => onChange(!checked)}><span /></button></div>;
 }

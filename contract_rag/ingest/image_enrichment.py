@@ -4,7 +4,7 @@ MinerU extracts every embedded image in a digital PDF as a `type=image` element
 (with a local `img_path`), including logos, signatures and decorative art. Left
 alone these become content-less `"[image]"` chunks that pollute the vector store
 (see memory/embedding_pitfalls.md). This pass runs *between* MinerU and the
-chunker (see memory/pdf_parsing.md "内嵌图片 + 表格"):
+chunker (see memory/pdf_parsing.md "embedded images + tables"):
 
     route -> MinerU -> enrich_images -> chunk -> embed
 

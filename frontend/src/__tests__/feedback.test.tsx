@@ -7,19 +7,19 @@ afterEach(cleanup);
 test("clicking 👍 votes up", () => {
   const onVote = vi.fn();
   render(<FeedbackButtons onVote={onVote} />);
-  fireEvent.click(screen.getByLabelText("有帮助"));
+  fireEvent.click(screen.getByLabelText("Helpful"));
   expect(onVote).toHaveBeenCalledWith("up");
 });
 
 test("clicking 👎 votes down", () => {
   const onVote = vi.fn();
   render(<FeedbackButtons onVote={onVote} />);
-  fireEvent.click(screen.getByLabelText("没帮助"));
+  fireEvent.click(screen.getByLabelText("Not helpful"));
   expect(onVote).toHaveBeenCalledWith("down");
 });
 
 test("reflects the current vote as pressed", () => {
   render(<FeedbackButtons value="down" onVote={() => {}} />);
-  expect(screen.getByLabelText("没帮助")).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByLabelText("有帮助")).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByLabelText("Not helpful")).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByLabelText("Helpful")).toHaveAttribute("aria-pressed", "false");
 });

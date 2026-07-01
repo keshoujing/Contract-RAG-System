@@ -8,11 +8,11 @@ from contract_rag.retrieval import evidence as ev
 
 
 def test_clause_item_shape():
-    item = ev.clause_item("JSUS2024070", page=2, section="付款条款",
-                          snippet="逐字原文", bbox=[1.0, 2.0, 3.0, 4.0])
+    item = ev.clause_item("JSUS2024070", page=2, section="Payment Terms",
+                          snippet="verbatim text", bbox=[1.0, 2.0, 3.0, 4.0])
     assert item == {
         "kind": "clause", "contract_id": "JSUS2024070", "page": 2,
-        "section": "付款条款", "snippet": "逐字原文", "bbox": [1.0, 2.0, 3.0, 4.0],
+        "section": "Payment Terms", "snippet": "verbatim text", "bbox": [1.0, 2.0, 3.0, 4.0],
     }
 
 
@@ -23,10 +23,10 @@ def test_clause_item_bbox_defaults_none():
 
 
 def test_record_item_shape():
-    item = ev.record_item("2024030", fields={"付款期限": "60天"}, title="UniFirst")
+    item = ev.record_item("2024030", fields={"Payment Term": "60 days"}, title="UniFirst")
     assert item == {
         "kind": "record", "contract_id": "2024030",
-        "title": "UniFirst", "fields": {"付款期限": "60天"},
+        "title": "UniFirst", "fields": {"Payment Term": "60 days"},
     }
 
 
@@ -49,10 +49,10 @@ def test_normalize_clause_defaults_bbox_none():
 
 
 def test_normalize_record_keeps_fields():
-    raw = [{"kind": "record", "contract_id": "c", "fields": {"金额": "¥1"}}]
+    raw = [{"kind": "record", "contract_id": "c", "fields": {"Amount": "$1"}}]
     out = ev.normalize_evidence(raw)
     assert out[0] == {"kind": "record", "contract_id": "c", "title": None,
-                      "fields": {"金额": "¥1"}}
+                      "fields": {"Amount": "$1"}}
 
 
 def test_normalize_non_list_returns_empty():

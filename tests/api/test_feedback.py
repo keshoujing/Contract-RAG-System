@@ -16,7 +16,7 @@ def dbp(tmp_path):
 
 def _assistant_msg(dbp, *, run_id="run-1"):
     cid = db.create_conversation(db_path=dbp)["conversation_id"]
-    db.append_conversation_message(cid, role="user", content="付款期限？", db_path=dbp)
+    db.append_conversation_message(cid, role="user", content="What are the payment terms?", db_path=dbp)
     a = db.append_conversation_message(
         cid, role="assistant", content="Net 30.",
         evidence=[{"kind": "clause", "contract_id": "c1"}],
@@ -41,11 +41,11 @@ def test_add_feedback_persists_and_returns_run_id(dbp):
 def test_revote_replaces_feedback(dbp):
     _, mid = _assistant_msg(dbp)
     db.add_message_feedback(mid, "up", db_path=dbp)
-    db.add_message_feedback(mid, "down", comment="错了", db_path=dbp)
+    db.add_message_feedback(mid, "down", comment="wrong", db_path=dbp)
     rows = db.list_feedback(db_path=dbp)
     assert len(rows) == 1
     assert rows[0]["score"] == "down"
-    assert rows[0]["comment"] == "错了"
+    assert rows[0]["comment"] == "wrong"
 
 
 def test_add_feedback_unknown_message_returns_none(dbp):
@@ -100,11 +100,11 @@ def test_feedback_persists_and_forwards_to_langsmith(client, monkeypatch):
     mid = _ask(client, monkeypatch, run_id="run-9")["message_id"]
 
     r = client.post(f"/api/qa/messages/{mid}/feedback",
-                    json={"score": "down", "comment": "错"})
+                    json={"score": "down", "comment": "wrong"})
 
     assert r.status_code == 200
     assert r.json()["score"] == "down"
-    assert sent == {"run_id": "run-9", "score": "down", "comment": "错"}
+    assert sent == {"run_id": "run-9", "score": "down", "comment": "wrong"}
 
 
 def test_feedback_unknown_message_is_404(client):

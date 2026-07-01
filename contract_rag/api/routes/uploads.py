@@ -1,4 +1,4 @@
-"""Contract ingest wizard: upload -> tag approval page -> (sync) extract -> confirm.
+"""Contract ingest wizard: upload -> tag approval page -> extract -> confirm.
 
 Pure-archive V1: no body parsing. The approval-page step runs the LLM extraction
 **synchronously** so the front end can read the extracted fields immediately
@@ -21,8 +21,8 @@ from contract_rag.api import storage_paths as sp
 from contract_rag.api.schemas import ConfirmRequest, PageTagsRequest
 from contract_rag.ingest.approval import extract_approval
 from contract_rag.ingest.approval_store import persist_approval, resolve_contract_id
+from contract_rag.registry import assign_file_no
 from contract_rag.storage import db
-from contract_rag import sync
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -70,10 +70,10 @@ def _render_thumbnails(task_id: str, pdf_path) -> None:
 async def upload_ingest(file: UploadFile, background: BackgroundTasks) -> dict:
     name = (file.filename or "").lower()
     if not name.endswith(".pdf") and file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="仅支持 PDF")
+        raise HTTPException(status_code=400, detail="PDF only")
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=400, detail="文件过大（上限 50MB）")
+        raise HTTPException(status_code=400, detail="File too large (50MB max)")
 
     task_id = db.create_task()
     udir = sp.upload_dir(task_id)
@@ -84,8 +84,8 @@ async def upload_ingest(file: UploadFile, background: BackgroundTasks) -> dict:
         n = rendering.page_count(pdf_path)
     except Exception:  # noqa: BLE001
         logger.exception("could not read uploaded PDF for task %s", task_id)
-        db.update_task_stage(task_id, "failed", status="failed", error_message="无法读取 PDF")
-        raise HTTPException(status_code=400, detail="无法读取 PDF")
+        db.update_task_stage(task_id, "failed", status="failed", error_message="Could not read PDF")
+        raise HTTPException(status_code=400, detail="Could not read PDF")
 
     background.add_task(_render_thumbnails, task_id, pdf_path)
     return {"task_id": task_id, "page_count": n, "filename": file.filename}
@@ -105,21 +105,21 @@ def submit_page_tags(task_id: str, body: PageTagsRequest) -> dict:
     n = rendering.page_count(pdf)
     tagged = {int(p) for p in body.tags}
     if tagged != set(range(1, n + 1)):
-        raise HTTPException(status_code=422, detail="每一页都需要标注角色")
+        raise HTTPException(status_code=422, detail="Every page must be tagged with a role")
     approval_pages = sorted(int(p) for p, r in body.tags.items() if r == "approval")
     contract_pages = [int(p) for p, r in body.tags.items() if r == "contract"]
     if not approval_pages:
-        raise HTTPException(status_code=422, detail="至少标注一页审批页")
+        raise HTTPException(status_code=422, detail="Tag at least one approval page")
     if not contract_pages:
-        raise HTTPException(status_code=422, detail="至少标注一页合同页")
+        raise HTTPException(status_code=422, detail="Tag at least one contract page")
 
     db.update_task_stage(task_id, "llm_extraction", status="running")
     try:
         fields = extract_approval(pdf, approval_pages[0])
     except Exception:  # noqa: BLE001
         logger.exception("approval extraction failed for task %s", task_id)
-        db.update_task_stage(task_id, "failed", status="failed", error_message="抽取失败")
-        raise HTTPException(status_code=502, detail="审批页抽取失败,请重试")
+        db.update_task_stage(task_id, "failed", status="failed", error_message="Extraction failed")
+        raise HTTPException(status_code=502, detail="Approval-page extraction failed, please retry")
     db.set_task_extraction(task_id, approval_page=approval_pages[0], extraction=fields)
     db.set_task_page_tags(task_id, body.tags)
     db.update_task_stage(task_id, "awaiting_user_confirmation")
@@ -180,7 +180,7 @@ def confirm_ingest(task_id: str, body: ConfirmRequest) -> dict:
 
     contract_id = str(merged.get("contract_id") or "").strip()
     if not contract_id:
-        raise HTTPException(status_code=400, detail="缺少合同编号")
+        raise HTTPException(status_code=400, detail="Missing contract number")
 
     exists = db.contract_exists(contract_id)
     if exists and not body.overwrite:
@@ -208,14 +208,10 @@ def confirm_ingest(task_id: str, body: ConfirmRequest) -> dict:
             for p, role in tags.items()
         ])
 
-    sync.assign_file_no(contract_id, category=body.category)
+    assign_file_no(contract_id, category=body.category)
 
     sp.promote_upload(task_id, contract_id)
     db.update_task_stage(task_id, "done", status="done", contract_id=contract_id)
-    try:
-        sync.sync_contract(contract_id)
-    except Exception:  # noqa: BLE001 — Excel sync is detachable; never fail the ingest on it
-        logger.exception("excel sync failed for %s (contract still archived)", contract_id)
 
     contract = db.get_contract(contract_id)
     signed = sp.signed_pdf(sp.contract_dir(contract_id))

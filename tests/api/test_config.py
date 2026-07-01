@@ -18,29 +18,17 @@ def client(tmp_path, monkeypatch):
 def test_config_shape(client):
     cfg = client.get("/api/config").json()
     assert cfg["ragEnabled"] is False
-    assert "excelEnabled" in cfg
     assert isinstance(cfg["fileNoRules"], list)
     assert {"category", "prefix", "example"} <= set(cfg["fileNoRules"][0].keys())
 
 
 def test_patch_config_persists_toggles(client):
-    resp = client.patch("/api/config", json={"excelEnabled": True, "backupEnabled": False})
+    resp = client.patch("/api/config", json={"ragEnabled": True})
     assert resp.status_code == 200
-    assert resp.json()["excelEnabled"] is True
-    assert resp.json()["backupEnabled"] is False
+    assert resp.json()["ragEnabled"] is True
     # persisted across a fresh GET
     again = client.get("/api/config").json()
-    assert again["excelEnabled"] is True
-    assert again["backupEnabled"] is False
-
-
-def test_excel_toggle_controls_sync(client):
-    from contract_rag.sync.service import _enabled
-
-    client.patch("/api/config", json={"excelEnabled": True})
-    assert _enabled() is True
-    client.patch("/api/config", json={"excelEnabled": False})
-    assert _enabled() is False
+    assert again["ragEnabled"] is True
 
 
 def test_patch_file_no_rules(client):
@@ -58,7 +46,7 @@ def test_config_exposes_contract_versions(client):
 
 
 def test_patch_contract_versions_persists(client):
-    r = client.patch("/api/config/contract-versions", json={"versions": ["采购合同", "销售合同"]})
+    r = client.patch("/api/config/contract-versions", json={"versions": ["Purchase Contract", "Sales Contract"]})
     assert r.status_code == 200
-    assert r.json() == ["采购合同", "销售合同"]
-    assert client.get("/api/config").json()["contractVersions"] == ["采购合同", "销售合同"]
+    assert r.json() == ["Purchase Contract", "Sales Contract"]
+    assert client.get("/api/config").json()["contractVersions"] == ["Purchase Contract", "Sales Contract"]

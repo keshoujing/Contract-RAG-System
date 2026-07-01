@@ -78,18 +78,6 @@ class ModelsConfig:
 
 
 @dataclass(frozen=True)
-class ExcelConfig:
-    """Transition-period Excel ledger sync (decision 15).
-
-    SQLite is the system source of truth; Excel is a detachable, human-owned
-    business ledger we sync into. ``enabled=false`` disconnects the sync entirely
-    (the core pipeline never depends on it). ``path`` is the ledger workbook.
-    """
-    enabled: bool
-    path: pathlib.Path | None
-
-
-@dataclass(frozen=True)
 class Config:
     chunking: ChunkingConfig
     router: RouterConfig
@@ -98,7 +86,6 @@ class Config:
     retrieval: RetrievalConfig
     mineru: MineruConfig
     models: ModelsConfig
-    excel: ExcelConfig
 
 
 def _resolve(p: str) -> pathlib.Path:
@@ -123,13 +110,4 @@ def load_config(config_path: str | None = None) -> Config:
         retrieval=RetrievalConfig(**raw["retrieval"]),
         mineru=MineruConfig(**raw["mineru"]),
         models=ModelsConfig(**raw["models"]),
-        excel=_excel_config(raw.get("excel") or {}),
-    )
-
-
-def _excel_config(raw: dict) -> ExcelConfig:
-    path = raw.get("path")
-    return ExcelConfig(
-        enabled=bool(raw.get("enabled", False)),
-        path=_resolve(path) if path else None,
     )

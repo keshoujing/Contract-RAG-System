@@ -1,4 +1,4 @@
-import type { ConfigState, ConflictField, ContractRow, ProcessingRow } from "./types";
+import type { ConfigState, ContractRow, ProcessingRow } from "./types";
 
 export const contracts: ContractRow[] = [
   {
@@ -8,16 +8,16 @@ export const contracts: ContractRow[] = [
     currency: "USD",
     term_months: 12,
     yearly_amount: 147664.05,
-    project_name: "UD 玻纤增强复合材料采购",
+    project_name: "UD Glass-Fiber Reinforced Composite Procurement",
     contract_type: "Supply Agreement",
-    petitioner: "王立",
+    petitioner: "Wang Li",
     petition_date: "2026-04-12",
     file_no: "2026004",
-    file_name: "2026004-JSUS2026004-UD 玻纤增强复合材料采购",
+    file_name: "2026004-JSUS2026004-UD Glass-Fiber Reinforced Composite Procurement",
     effective_date: "2026-04-15",
     expiration_date: "2027-04-14",
     department: "UD",
-    brief_description: "年度玻纤增强复合材料采购审批。",
+    brief_description: "Annual glass-fiber reinforced composite procurement approval.",
     status: "active",
     pages: 14,
     size: "8.2 MB",
@@ -30,16 +30,16 @@ export const contracts: ContractRow[] = [
     currency: "USD",
     term_months: 12,
     yearly_amount: 52300,
-    project_name: "FPW 设备维护服务协议",
+    project_name: "FPW Equipment Maintenance Service Agreement",
     contract_type: "Service Agreement",
-    petitioner: "李娜",
+    petitioner: "Li Na",
     petition_date: "2026-03-28",
     file_no: "2026003",
-    file_name: "2026003-JSUS2026003-FPW 设备维护服务协议",
+    file_name: "2026003-JSUS2026003-FPW Equipment Maintenance Service Agreement",
     effective_date: "2026-04-01",
     expiration_date: "2027-03-31",
     department: "FPW",
-    brief_description: "维护服务与备件支持。",
+    brief_description: "Maintenance service and spare-parts support.",
     status: "active",
     pages: 9,
     size: "4.4 MB",
@@ -52,16 +52,16 @@ export const contracts: ContractRow[] = [
     currency: "USD",
     term_months: 0,
     yearly_amount: null,
-    project_name: "涂层材料框架采购",
+    project_name: "Coating Material Framework Procurement",
     contract_type: "Framework",
-    petitioner: "陈敏",
+    petitioner: "Chen Min",
     petition_date: "2026-03-20",
     file_no: "2026002",
-    file_name: "2026002-JSUS2026002-涂层材料框架采购",
+    file_name: "2026002-JSUS2026002-Coating Material Framework Procurement",
     effective_date: "2026-03-20",
     expiration_date: "2026-12-31",
     department: "PD",
-    brief_description: "生产涂层材料框架采购。",
+    brief_description: "Production coating material framework procurement.",
     status: "active",
     pages: 18,
     size: "10.6 MB",
@@ -74,16 +74,16 @@ export const contracts: ContractRow[] = [
     currency: "USD",
     term_months: null,
     yearly_amount: null,
-    project_name: "价格补充协议",
+    project_name: "Price Supplement Agreement",
     contract_type: "Supplement",
-    petitioner: "赵阳",
+    petitioner: "Zhao Yang",
     petition_date: "2025-12-08",
     file_no: "2025118",
-    file_name: "2025118-JSUS2025118-价格补充协议",
+    file_name: "2025118-JSUS2025118-Price Supplement Agreement",
     effective_date: null,
     expiration_date: null,
     department: "UD",
-    brief_description: "待确认补充协议日期。",
+    brief_description: "Supplement agreement date pending confirmation.",
     status: "expired",
     pages: 5,
     size: "2.1 MB",
@@ -96,71 +96,30 @@ export const processingRows: ProcessingRow[] = [
     contract_id: "JSEGRCXS20260003",
     counterparty: "Jushi Egypt For Fiberglass Industry S.A.E",
     ingest: { stage: "done", status: "done" },
-    sync: { state: "conflict", attempts: 0, updated_at: "刚刚" },
-    updated_at: "刚刚"
+    updated_at: "just now"
   },
   {
     contract_id: "JSUS2026006",
-    counterparty: "水处理框架供应商",
+    counterparty: "Water-treatment framework supplier",
     ingest: { stage: "done", status: "done" },
-    sync: {
-      state: "retrying",
-      attempts: 3,
-      last_error: "Excel 文件被占用，请关闭后重试",
-      last_attempt_at: "2026-06-02T22:12:00",
-      next_retry_in_seconds: 42,
-      updated_at: "2 分钟前"
-    },
-    updated_at: "2 分钟前"
+    updated_at: "2 minutes ago"
   },
   {
     contract_id: "CN2026003",
-    counterparty: "不锈钢管供应商",
+    counterparty: "Stainless-steel pipe supplier",
     ingest: { stage: "embedding", status: "running" },
-    sync: { state: "pending", attempts: 0, updated_at: "5 分钟前" },
-    updated_at: "5 分钟前"
+    updated_at: "5 minutes ago"
   },
   {
     contract_id: "JSUS2026004",
     counterparty: "Owens Corning Composites",
     ingest: { stage: "done", status: "done" },
-    sync: { state: "synced", attempts: 0, updated_at: "今天 09:22" },
-    updated_at: "今天 09:22"
-  }
-];
-
-export const conflicts: ConflictField[] = [
-  {
-    field: "counterparty",
-    owner: "system",
-    baseline: "Jushi Egypt For Fiberglass Industry S.A.E",
-    system: "Jushi Egypt For Fiberglass Industry S.A.E",
-    excel: "巨石埃及玻璃纤维",
-    suggested: "system"
-  },
-  {
-    field: "amount",
-    owner: "system",
-    baseline: "39041.60",
-    system: "39041.60",
-    excel: "39041.6",
-    suggested: "system"
-  },
-  {
-    field: "effective_date",
-    owner: "human",
-    baseline: "（空）",
-    system: "（空）",
-    excel: "2026-03-15",
-    suggested: "excel"
+    updated_at: "Today 09:22"
   }
 ];
 
 export const configState: ConfigState = {
   ragEnabled: false,
-  excelEnabled: true,
-  backupEnabled: true,
-  lockCheckEnabled: true,
   fileNoRules: [
     { category: "ordinary", prefix: "", example: "2026001" },
     { category: "china-buy", prefix: "CN", example: "CN2026001" },

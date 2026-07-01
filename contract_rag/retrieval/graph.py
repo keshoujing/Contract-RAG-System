@@ -221,9 +221,9 @@ def retrieve(
 # --------------------------------------------------------------------------- #
 
 _STRUCTURED_QUERY_HINTS = (
-    "合同", "供应商", "部门", "项目", "金额", "万美元", "美元", "生效", "到期",
-    "采购", "服务", "状态", "file", "contract", "supplier", "vendor",
-    "department", "amount", "effective", "expiration", "expires",
+    "file", "contract", "supplier", "vendor", "counterparty", "project",
+    "department", "amount", "usd", "dollar", "effective", "expiration",
+    "expires", "purchase", "service", "status",
 )
 
 
@@ -251,35 +251,40 @@ def _extract_sql_filters(question: str) -> dict:
     if m:
         filters["identifier"] = m.group(1)
 
-    m = re.search(r"([A-Za-z][A-Za-z0-9& .-]{2,40})\s*这份合同", q)
+    m = re.search(r"(?:for|in|under|with)\s+(?:the\s+)?([A-Za-z][A-Za-z0-9& .-]{2,40}?)\s+(?:contract|agreement)\b", q, re.I)
     if m:
         filters["name"] = m.group(1).strip()
 
     if "chemaqua" in q_lower or "chem-aqua" in q_lower:
         filters["name"] = "ChemAqua"
+    if "goshen" in q_lower:
+        filters["name"] = "Goshen"
     if "linde" in q_lower:
         filters["name"] = "Linde"
     if "unifirst" in q_lower or "uniform" in q_lower or "garment" in q_lower:
         filters["name"] = "UniFirst"
 
-    m = re.search(r"\b([A-Z]{2,})\s*部门", q)
+    m = re.search(r"\b([A-Z]{2,})\s+department\b", q, re.I)
     if m:
         filters["department"] = m.group(1)
 
-    if "采购合同" in q or "purchase contract" in q_lower:
-        filters["contract_type"] = "采购合同"
-    elif "服务合同" in q or "service contract" in q_lower or "service agreement" in q_lower:
-        filters["contract_type"] = "服务合同"
+    if "purchase contract" in q_lower or "purchase agreement" in q_lower:
+        filters["contract_type"] = "Purchase Contract"
+    elif "service contract" in q_lower or "service agreement" in q_lower:
+        filters["contract_type"] = "Service Contract"
 
-    if re.search(r"(超过|大于|over|above|greater than)\s*10\s*万", q_lower):
-        filters["amount_min"] = 100000
-    else:
-        m = re.search(r"(?:超过|大于|over|above|greater than)\s*\$?\s*([0-9][0-9,]*(?:\.\d+)?)", q_lower)
-        if m:
-            filters["amount_min"] = float(m.group(1).replace(",", ""))
+    m = re.search(r"(?:over|above|greater than|more than)\s*\$?\s*([0-9][0-9,]*(?:\.\d+)?)(?:\s*(k|m|million|thousand))?", q_lower)
+    if m:
+        amount = float(m.group(1).replace(",", ""))
+        suffix = (m.group(2) or "").lower()
+        if suffix in {"k", "thousand"}:
+            amount *= 1_000
+        elif suffix in {"m", "million"}:
+            amount *= 1_000_000
+        filters["amount_min"] = amount
 
     years = re.findall(r"20\d{2}", q)
-    if years and ("生效" in q or "到期" in q or "effective" in q_lower or "expir" in q_lower):
+    if years and ("effective" in q_lower or "expir" in q_lower):
         filters["year"] = years[0]
 
     return filters
@@ -339,7 +344,7 @@ def _sql_candidate_rows(question: str) -> tuple[list[dict], dict]:
 
 def _is_set_retrieval_question(question: str) -> bool:
     q = question.lower()
-    return any(t in q for t in ("哪些", "哪几份", "which contracts", "all contracts"))
+    return any(t in q for t in ("which contracts", "what contracts", "all contracts", "list contracts"))
 
 
 def _has_strong_sql_filter(filters: dict) -> bool:
@@ -486,21 +491,21 @@ def sql_gated_retrieve(
 # --------------------------------------------------------------------------- #
 
 _CLASSIFY_PROMPT = PromptTemplate(
-    template="""请判断用户问题属于哪种查询类型，只返回 JSON。
+    template="""Classify the user's question. Return JSON only.
 
-类型定义：
-- "entity"：询问合同当事方、签约日期、合同编号、金额等文档级信息（Who/When/What）
-- "clause"：询问具体条款内容，如付款期限、违约责任、交货条件等
-- "comparison"：跨合同比较，如"哪份合同付款期限更长"
+Classes:
+- "entity": document-level metadata such as parties, signing date, contract number, amount, status, department, or project.
+- "clause": specific contractual language such as payment terms, liability, delivery conditions, termination, warranty, or governing law.
+- "comparison": cross-contract comparison or ranking, such as which contract has the longer payment term.
 
-示例：
-问题："谁是买方？" → {{"question_class": "entity"}}
-问题："付款期限是多少天？" → {{"question_class": "clause"}}
-问题："这两份合同的价格哪个更高？" → {{"question_class": "comparison"}}
+Examples:
+Question: "Who is the buyer?" -> {{"question_class": "entity"}}
+Question: "How many days are the payment terms?" -> {{"question_class": "clause"}}
+Question: "Which of these two contracts has the higher price?" -> {{"question_class": "comparison"}}
 
-用户问题：{question}
+User question: {question}
 
-只返回 JSON，不要任何其他内容：""",
+Return JSON only and nothing else:""",
     input_variables=["question"],
 )
 
@@ -524,11 +529,11 @@ def _entity_context() -> str:
 
 
 _ENTITY_PROMPT = PromptTemplate(
-    template="""以下是合同元数据（SQLite 结构化真源）：
+    template="""The following contract metadata is the structured source of truth from SQLite:
 {context}
 
-请仅根据上述数据回答用户问题。若数据中没有，请直接说明缺失。
-问题：{question}""",
+Answer the user's question using only the metadata above. If the data is missing, say so directly.
+Question: {question}""",
     input_variables=["context", "question"],
 )
 
@@ -536,7 +541,7 @@ _ENTITY_PROMPT = PromptTemplate(
 def entity_lookup(question: str) -> str:
     context = _entity_context()
     if not context:
-        return "合同库为空，暂无可查询的元数据。"
+        return "The contract registry is empty; no metadata is available to query."
     out = LLM().get_custom_chat_object(load_config().models.rag_generate).invoke(
         _ENTITY_PROMPT.format(context=context, question=question)
     )
@@ -544,15 +549,15 @@ def entity_lookup(question: str) -> str:
 
 
 _ANSWER_PROMPT = PromptTemplate(
-    template="""请根据以下合同条款/表格内容回答用户问题。只用给定内容，不要编造。
+    template="""Answer the user's question from the contract clauses and table content below. Use only the provided content; do not invent facts.
 {document}
 
-问题：{question}""",
+Question: {question}""",
     input_variables=["document", "question"],
 )
 
 _SQL_GATED_ANSWER_PROMPT = PromptTemplate(
-    template="""请根据以下 SQL gate 摘要和合同条款/表格内容回答用户问题。只用给定内容，不要编造。
+    template="""Answer the user's question from the SQL gate summary and the contract clauses / table content below. Use only the provided content; do not invent facts.
 
 SQL gate summary:
 {gate_summary}
@@ -560,20 +565,20 @@ SQL gate summary:
 Evidence:
 {document}
 
-回答要求：
-- 需要列举合同或比较合同的时候，优先按 source label 里的 contract_id 组织答案。
-- SQL gate matched vector contract IDs 是结构化条件命中的候选合同。
-- 如果 supplemented open search 为 true，开放补充证据只表示可能相关；不要忽略 SQL gate 命中的合同。
+Answer requirements:
+- When listing or comparing contracts, organize the answer by the contract_id in each source label.
+- SQL gate matched vector contract IDs are the candidate contracts selected by structured filters.
+- If supplemented open search is true, the supplemental evidence is only possibly relevant; do not ignore contracts selected by the SQL gate.
 
-问题：{question}""",
+Question: {question}""",
     input_variables=["gate_summary", "document", "question"],
 )
 
 
 _CLAUSE_EVIDENCE_TERMS = (
-    "条款", "提到", "写到", "约定", "付款", "账期", "违约", "价格调整",
     "price adjustment", "escalation", "30 days", "thirty days", "fee",
     "rental", "propane", "payment", "terms", "clause", "mention",
+    "termination", "liability", "warranty", "governing law",
 )
 
 
@@ -673,20 +678,20 @@ def answer(question: str, *, contract_id: str | None = None, use_reranker: bool 
 # --------------------------------------------------------------------------- #
 
 _SUFFICIENCY_PROMPT = PromptTemplate(
-    template="""判断下面的内容是否足够回答用户问题。只返回 JSON：{{"sufficient": true/false}}
+    template="""Decide whether the content below is sufficient to answer the user's question. Return JSON only: {{"sufficient": true/false}}
 
-内容：{document}
+Content: {document}
 
-问题：{question}""",
+Question: {question}""",
     input_variables=["document", "question"],
 )
 
 _REWRITE_PROMPT = PromptTemplate(
-    template="""上一轮检索结果不足以回答问题。请改写问题以检索到更相关的信息。
-只返回 JSON：{{"new_query": "改写后的问题"}}
+    template="""The previous retrieval result was not sufficient to answer the question. Rewrite the question to retrieve more relevant information.
+Return JSON only: {{"new_query": "rewritten question"}}
 
-原问题：{question}
-上一轮检索结果：{document}""",
+Original question: {question}
+Previous retrieval result: {document}""",
     input_variables=["question", "document"],
 )
 

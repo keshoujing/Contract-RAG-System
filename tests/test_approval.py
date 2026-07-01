@@ -17,8 +17,8 @@ def test_parse_coerces_amount_and_keeps_known_fields() -> None:
 
 
 def test_parse_keeps_contract_type() -> None:
-    raw = '{"contract_number": "X", "contract_type": "标准版"}'
-    assert parse_approval_fields(raw)["contract_type"] == "标准版"
+    raw = '{"contract_number": "X", "contract_type": "Standard"}'
+    assert parse_approval_fields(raw)["contract_type"] == "Standard"
 
 
 def test_parse_drops_unknown_keys() -> None:

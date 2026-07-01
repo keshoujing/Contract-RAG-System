@@ -1,8 +1,8 @@
 """Pre-embedding junk filter: drop content-less / bare-marker chunks so they
-never reach the vector store (memory/ingestion_pipeline.md decision 12: "入库前
-清洗：丢裸标题块/空块"). Targets the real junk seen on 2026004: the orphan "9."
-2-char chunk (a clause number MinerU emitted out of order) and "[image]"
-placeholders.
+never reach the vector store (memory/ingestion_pipeline.md decision 12: "clean
+before ingest: drop bare-heading / empty chunks"). Targets the real junk seen on
+2026004: the orphan "9." 2-char chunk (a clause number MinerU emitted out of
+order) and "[image]" placeholders.
 """
 from __future__ import annotations
 

@@ -36,7 +36,7 @@ _CONTRACT_COLS = (
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS contracts (
     contract_id       TEXT PRIMARY KEY,
-    contract_number   TEXT,          -- 合同编号 (Contract No. from approval/body)
+    contract_number   TEXT,          -- Contract No. (from approval/body)
     counterparty      TEXT,
     amount            REAL,
     currency          TEXT,
@@ -45,13 +45,13 @@ CREATE TABLE IF NOT EXISTS contracts (
     petitioner        TEXT,
     petition_date     TEXT,
     brief_description TEXT,
-    contract_type     TEXT,          -- 合同版本 (Contract Version, from the approval form)
+    contract_type     TEXT,          -- Contract Version (from the approval form)
     effective_date    TEXT,
     expiration_date   TEXT,
-    file_no           TEXT,          -- 存档编号 (File No.) — rule-assigned, see sync/file_no.py
+    file_no           TEXT,          -- File No. — rule-assigned, see registry/file_no.py
     status            TEXT DEFAULT 'active',
     page_count        INTEGER,
-    term_months       INTEGER,        -- 计价期: NULL=未指定, 0=一次性, N=N个月 (用于年均价折算)
+    term_months       INTEGER,        -- pricing period: NULL=unspecified, 0=one-off, N=N months (used for annualized-price conversion)
     created_at        TEXT NOT NULL,
     updated_at        TEXT NOT NULL,
     raw_extraction    TEXT          -- JSON: full fields + per-field confidence/source span
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS pages (
     page_id        INTEGER PRIMARY KEY AUTOINCREMENT,
     contract_id    TEXT NOT NULL,
     page_no        INTEGER NOT NULL,
-    page_type      TEXT,           -- 审批/合同/比价/补充 (user-tagged; not set this slice)
+    page_type      TEXT,           -- approval/contract/comparison/supplement (user-tagged; not set this slice)
     route          TEXT,           -- mineru | vlm | rapidfuzz (processing engine)
     avg_confidence REAL
 );
@@ -351,7 +351,7 @@ def get_pages(contract_id: str, db_path=None) -> list[dict]:
 # Q&A conversations
 # --------------------------------------------------------------------------- #
 
-def create_conversation(title: str = "新会话", db_path=None) -> dict:
+def create_conversation(title: str = "New conversation", db_path=None) -> dict:
     init_db(db_path)
     conversation_id = uuid.uuid4().hex
     now = _now()
@@ -369,7 +369,7 @@ def create_conversation(title: str = "新会话", db_path=None) -> dict:
     }
 
 
-def ensure_conversation(conversation_id: str | None = None, *, title: str = "新会话", db_path=None) -> dict:
+def ensure_conversation(conversation_id: str | None = None, *, title: str = "New conversation", db_path=None) -> dict:
     if conversation_id:
         existing = get_conversation(conversation_id, db_path=db_path)
         if existing is not None:
@@ -507,13 +507,13 @@ def list_feedback(db_path=None) -> list[dict]:
 
 def rename_conversation_if_default(conversation_id: str, title: str, db_path=None) -> None:
     init_db(db_path)
-    title = title.strip()[:80] or "新会话"
+    title = title.strip()[:80] or "New conversation"
     with connect(db_path) as conn:
         row = conn.execute(
             "SELECT title FROM qa_conversations WHERE conversation_id = ?",
             (conversation_id,),
         ).fetchone()
-        if row and row["title"] == "新会话":
+        if row and row["title"] == "New conversation":
             conn.execute(
                 "UPDATE qa_conversations SET title = ?, updated_at = ? WHERE conversation_id = ?",
                 (title, _now(), conversation_id),

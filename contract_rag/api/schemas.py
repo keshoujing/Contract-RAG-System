@@ -27,10 +27,6 @@ class ConfirmRequest(BaseModel):
     overwrite: bool = False
 
 
-class ResolveRequest(BaseModel):
-    resolutions: dict[str, object]
-
-
 class PatchContractRequest(BaseModel):
     """Editable contract fields. Unknown/derived keys (file_name, pages, status, ...) are ignored."""
 
@@ -60,9 +56,6 @@ class ConfigPatchRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     ragEnabled: bool | None = None
-    excelEnabled: bool | None = None
-    backupEnabled: bool | None = None
-    lockCheckEnabled: bool | None = None
 
 
 class QuerySource(BaseModel):

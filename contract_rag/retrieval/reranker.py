@@ -2,7 +2,7 @@
 
 Replaces the old local ``bge-reranker-v2-m3`` cross-encoder, which OOM'd on long
 table chunks (it padded the batch to the longest sequence — see
-``memory/retrieval_eval.md`` 四点五坑3). This calls Google's managed
+``memory/retrieval_eval.md`` §4.5 pitfall 3). This calls Google's managed
 ``semantic-ranker`` over the Discovery Engine ``rank`` endpoint instead: no local
 model, no OOM, multilingual (Chinese query ↔ English clause verified).
 

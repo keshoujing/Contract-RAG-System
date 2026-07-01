@@ -1,11 +1,7 @@
-"""User-managed list of contract versions (合同版本), persisted in the settings kv.
-
-Mirrors the file_no_rules pattern: seeded with the spec defaults, overridable
-from the settings page. The value lands on ``contracts.contract_type``.
-"""
+"""User-managed list of contract versions for registry forms."""
 from __future__ import annotations
 
-from contract_rag.sync import settings
+from contract_rag.registry import settings
 
 _KEY = "contract_versions"
 _SEED = ["Supply Agreement", "Service Agreement", "Framework", "Supplement"]

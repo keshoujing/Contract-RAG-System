@@ -164,7 +164,7 @@ def main(argv=None) -> None:
     # longest sequence.
     # NOTE (2026-06-19): the OOM is since resolved — reranking now goes through the
     # managed Vertex Ranking API (contract_rag/retrieval/reranker.py). The on/off
-    # A/B is still TODO (see memory/retrieval_eval.md §五/§八).
+    # A/B is still TODO (see memory/retrieval_eval.md §5/§8).
     p1 = {k: v for k, v in cache.items() if k.startswith("p1:") and k.endswith("rr=off")}
     winner_label = pick_winner(p1, metric=_WINNER_METRIC, recall_floor=0.0)
     winner_alpha, winner_rerank = _parse_label(winner_label)

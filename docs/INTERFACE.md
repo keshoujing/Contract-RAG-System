@@ -1,15 +1,15 @@
-# Backend Interface — Approval Extraction & Excel Ledger Sync
+# Backend Interface — Approval Extraction & Contract Registry
 
-> Stable backend contract the front end connects to (processing page + conflict-
-> merge page). Keep this file in sync with the code; it is referenced from
+> Stable backend contract the front end connects to (upload wizard, ledger,
+> processing page, settings, and Q&A). Keep this file in sync with the code; it is referenced from
 > `CLAUDE.md`. Design rationale lives in `memory/ingestion_pipeline.md` (decisions
-> 4, 10, 15).
+> 4 and 10).
 
 ## Architecture in one line
 
-**SQLite is the system source of truth; Excel is a detachable, human-owned
-ledger we sync into.** The core ingest/retrieval never depends on Excel. Turn the
-whole limb off with `excel.enabled: false` in `contract_rag/config.yaml`.
+**SQLite is the system source of truth.** Ingest writes contract metadata and
+task state into SQLite; retrieval joins vector hits back to the same ledger rows.
+Spreadsheet export is an on-demand download, not a synchronization path.
 
 ---
 
@@ -34,72 +34,11 @@ The model used is `models.approval` (flash tier), configurable in `config.yaml`.
 
 ---
 
-## 2. Excel ledger sync — `contract_rag.sync`
+## 2. Registry settings — `contract_rag.registry`
 
-Import only from the package root: `from contract_rag import sync`.
+Import registry helpers from `contract_rag.registry`.
 
-### Write / retry
-
-| Function | Signature | Use |
-|---|---|---|
-| `sync_contract` | `(contract_id, *, db_path=None) -> SyncResult` | sync one contract after ingest; idempotent; call again to retry a `pending` |
-| `resolve_conflict` | `(contract_id, resolutions, *, db_path=None) -> SyncResult` | merge page submits user choices |
-
-`resolutions`: `{field: "system" | "excel" | <explicit value>}`. The chosen value
-is written to **both** SQLite and the ledger and becomes the new baseline.
-
-### Read (processing page + merge page)
-
-| Function | Returns |
-|---|---|
-| `get_status(contract_id)` | `dict \| None` — `{state, baseline, conflicts, attempts, last_error, last_attempt_at, updated_at}` |
-| `list_statuses()` | `list[dict]` — all rows, newest first (drives the processing table) |
-| `get_conflict(contract_id)` | `list[dict]` — `[{field, baseline, system, excel}]` for the three-way merge view |
-
-### `SyncResult`
-
-`{contract_id, state, pushed: dict, absorbed: dict, conflicts: list, error: str|None}`
-
-### `state` values (show on the processing page)
-
-| State | Meaning |
-|---|---|
-| `synced` | ledger matches the agreed baseline |
-| `pending` | change computed, not yet written (e.g. file locked) — retryable |
-| `retrying` | a write has failed at least once; retry scheduled (`attempts`, `last_error`) |
-| `conflict` | needs user confirmation — route to the merge page (`get_conflict`) |
-| `disabled` | Excel sync turned off in settings |
-
-**Important for the UI:** ingest status (`tasks` table, `storage/db.py`) and Excel
-sync status are **independent**. A `pending`/`retrying` Excel sync does **not** mean
-the contract is unusable — retrieval works the moment ingest is `done`.
-
-### Field → ledger column mapping (decision 15, confirmed against the real ledger)
-
-| field | ledger column | owner |
-|---|---|---|
-| `contract_id` | Contract No. (合同编号) — key | system |
-| `counterparty` | Supplier (供应商) | system |
-| `amount` | Contract Amount (合同金额) | system |
-| `currency` | Currency (币种) | system |
-| `project_name` | Request Description (合同内容) | system |
-| `contract_type` | Contract Type (合同版本) | system |
-| `petitioner` | Buyer (经办人&制单人) | system |
-| `petition_date` | Registered Date (登记日期) | system |
-| `file_no` | File No. (存档编号) — rule-assigned | system |
-| `file_name` | File Name — derived `{file_no}-{contract_id}-{project_name}` | system |
-| `effective_date` | Contract Start Date | human |
-| `expiration_date` | Contract Exp. Date (合同到期日) | human |
-
-- **Owner rule:** a single-side change by a field's owner is **not** a conflict.
-  Only a human edit to a *system* field, or both sides changing the same field,
-  raises a conflict.
-- **Ledger format is never changed:** appends are full-width; unmapped/human-only
-  columns (Agreement number, Yearly Contract Amount, 合同审批日期, and all unused
-  columns) are left blank and never dropped or reordered.
-- **Dropped (kept in SQLite, not synced):** `department`, `brief_description`.
-
-### File No. rules — `contract_rag.sync` (reserved setter for the front end)
+### File No. rules
 
 File No. = **`{prefix}{year}{seq:03d}`** — a per-(category, year) running sequence
 that resets each year: `2026001` (ordinary), `CN2026001` (china-buy), `PD2026001`
@@ -117,10 +56,7 @@ front-end-configurable.
 `next_seq` counts **per category, per year** (so the three examples above coexist).
 Switch to a single shared per-year counter by changing that one function if needed.
 
-`DEFAULT_EXCEL_COLUMNS` in `sync/models.py` holds distinctive header substrings; if
-the real headers are renamed, update that map only — the adapter matches by header.
-
-### Contract versions — `contract_rag.sync` (reserved setter for the front end)
+### Contract versions
 
 The **合同版本** list (lands on `contracts.contract_type`) is user-managed, same
 pattern as the File No. rules. The user picks a version at upload; the extracted
@@ -162,8 +98,6 @@ can be annualized. Stored in `contracts.term_months` (INTEGER):
   and the **derived, never-stored** `yearly_amount: number | null`
   (`projections.derive_yearly_amount`). Both surface as ledger columns 合同期 / 年均价.
 - **Editable later:** `PATCH /api/contracts/{id}` accepts `term_months: int | null`.
-- **Excel sync:** not wired yet — the ledger's human-only `Yearly Contract Amount`
-  column is the natural future target for `yearly_amount`.
 
 ---
 

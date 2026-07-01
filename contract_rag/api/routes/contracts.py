@@ -1,4 +1,4 @@
-"""Ledger read endpoints + Excel export + signed.pdf download."""
+"""Ledger read endpoints, spreadsheet export, and signed.pdf download."""
 from __future__ import annotations
 
 import io
@@ -8,7 +8,6 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from contract_rag import sync
 from contract_rag.api import projections
 from contract_rag.api import rendering
 from contract_rag.api import storage_paths as sp
@@ -20,8 +19,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _EXPORT_HEADERS = [
-    "合同编号", "对方公司", "项目名称", "金额", "币种", "部门", "申请人",
-    "登记日期", "生效日", "到期日", "存档编号", "文件名", "状态",
+    "Contract No.", "Counterparty", "Project Name", "Amount", "Currency",
+    "Department", "Petitioner", "Registered Date", "Effective Date",
+    "Expiration Date", "File No.", "File Name", "Status",
 ]
 
 _EDITABLE = (
@@ -112,10 +112,6 @@ def patch_contract(contract_id: str, body: PatchContractRequest) -> dict:
     changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if k in _EDITABLE}
     if changes:
         db.upsert_contract(contract_id, **changes)
-        try:
-            sync.sync_contract(contract_id)
-        except Exception:  # noqa: BLE001 — Excel sync is detachable; never fail the edit on it
-            logger.exception("excel sync failed after patch of %s", contract_id)
     return _row(db.get_contract(contract_id))
 
 

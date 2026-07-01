@@ -57,7 +57,7 @@ def query(req: QueryRequest) -> QueryResponse:
     conversation = db.ensure_conversation(req.conversation_id)
     conversation_id = conversation["conversation_id"]
     # Prior turns (the current question is appended only after answering), so the
-    # agent can resolve follow-up references like "它什么时候到期".
+    # agent can resolve follow-up references like "when does it expire".
     history = db.get_conversation_messages(conversation_id)
     try:
         result = answer_with_evidence(

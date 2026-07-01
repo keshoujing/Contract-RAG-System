@@ -30,7 +30,7 @@ def _full_extraction(**over):
     fields = {
         "contract_number": "JSUS2026099", "counterparty": "OC", "amount": 100.0,
         "currency": "USD", "project_name": "P", "department": "UD",
-        "petitioner": "王立", "petition_date": "2026-04-12", "contract_type": "Supply",
+        "petitioner": "Wang Li", "petition_date": "2026-04-12", "contract_type": "Supply",
         "_per_field_confidence": {"project_name": 0.6},
         "_per_field_source_span": {"project_name": "UD Glass..."},
     }
@@ -63,7 +63,7 @@ def test_ingest_flow(client, monkeypatch):
     # confirm sends only the surfaced fields; backend merges over stored extraction
     resp = client.post(f"/api/ingest/{task_id}/confirm", json={
         "fields": {"contract_id": "JSUS2026099", "counterparty": "OC", "amount": "$100.00",
-                   "project_name": "P", "department": "UD", "petitioner": "王立"},
+                   "project_name": "P", "department": "UD", "petitioner": "Wang Li"},
         "effective_date": "2026-04-15", "expiration_date": "2027-04-14",
         "category": "default",
     })
